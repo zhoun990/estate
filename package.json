@@ -1,5 +1,5 @@
 {
-	"name": "@webbel/estate",
+	"name": "@webbe1/estate",
 	"version": "0.1.0",
 	"description": "A simple global state management library",
 	"main": "dist/index.js",
@@ -12,7 +12,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "estate.git"
+		"url": "https://github.com/zhoun990/estate.git"
 	},
 	"author": "Shu Nagumo",
 	"license": "MIT",
