@@ -2,10 +2,11 @@ export type Reducers<ContextState> = (
 	state: ContextState,
 	payload: any
 ) => void | ContextState;
-type Action<ContextState> = (
-	currentRootState: ContextState
-) => void | ContextState;
-type Rerender<State> = ((key: keyof State, state: State) => boolean)[];
+type Action<ContextState> = (currentValue: ContextState) => void | ContextState;
+type Rerender<State> = Record<
+	string,
+	(key: keyof State, state: State) => boolean
+>;
 type SliceState<RootState, Slice extends keyof RootState> = {
 	[Key in keyof RootState[Slice]]: RootState[Slice][Key];
 };
@@ -32,3 +33,20 @@ export type Updaters<State> = {
 	[Slice in keyof State]: UpdaterBuilder<State, Slice>;
 };
 export type RootStateType = StateWithRerenders<Record<any, Record<any, any>>>;
+export type Options<RootState> = {
+	persist?: (keyof RootState)[];
+	storage?: {
+		getItem(key: any): Promise<any> | any;
+		setItem(key: any, value: any): Promise<void> | void;
+		// removeItem(key: any): Promise<void> | void;
+	};
+};
+export type UpdaterCallback = <
+	RootState extends RootStateType,
+	Slice extends keyof RootState
+>(props: {
+	prevuesState: RootState;
+	newState: RootState;
+	slice: Slice;
+	key: keyof RootState[Slice];
+}) => void;

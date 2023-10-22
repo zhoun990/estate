@@ -1,11 +1,11 @@
 {
 	"name": "@webbe1/estate",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "A simple global state management library",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"scripts": {
-		"publish": "npm publish --access=public",
+		"publish": "npm version patch && npm publish --access public",
 		"build": "tsc",
 		"prepare": "npm run build",
 		"test": "echo \"Error: no test specified\" && exit 1"
@@ -22,5 +22,9 @@
 	"devDependencies": {
 		"@types/react": "^18.2.31",
 		"typescript": "^5.2.2"
-	}
+	},
+	"keywords": [
+		"react",
+		"state"
+	]
 }

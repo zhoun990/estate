@@ -1,12 +1,11 @@
-import { RootStateType, Reducers } from "../types";
+import { RootStateType, Reducers, UpdaterCallback } from "../types";
 import { getObjectKeys, isCallable } from "./utils";
-import { callRerenders } from "./callRerenders";
-
 export const createUpdater = <
 	RootState extends RootStateType,
 	Slice extends keyof RootState
 >(
-	slice: Slice
+	slice: Slice,
+	callback?: UpdaterCallback
 ): Reducers<RootState> => {
 	type State = RootState[typeof slice];
 	return (
@@ -32,7 +31,12 @@ export const createUpdater = <
 				state[key] = cb;
 			}
 			if (currentRootState !== state[key]) {
-				callRerenders({ rootState, slice, key });
+				callback?.({
+					prevuesState: currentRootState,
+					newState: rootState,
+					slice,
+					key,
+				});
 			}
 		});
 	};

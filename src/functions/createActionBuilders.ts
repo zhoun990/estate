@@ -1,16 +1,24 @@
-import { Reducers, StateWithRerenders, Updaters } from "../types";
+import {
+	Options,
+	Reducers,
+	RootStateType,
+	StateWithRerenders,
+	UpdaterCallback,
+	Updaters,
+} from "../types";
 import { getObjectKeys } from "./utils";
 import { createUpdater } from "./createUpdater";
 
 export const createActionBuilders = <
-	RootState extends StateWithRerenders<Record<any, Record<any, any>>>
+	RootState extends RootStateType
 >(
-	rootState: RootState
+	rootState: RootState,
+	onUpdateState?: UpdaterCallback
 ) => {
 	type ReducersRecord = Record<keyof RootState, Reducers<RootState>>;
 	const updaters = getObjectKeys(rootState).reduce<ReducersRecord>(
 		(acc, value) => {
-			acc[value] = createUpdater(value);
+			acc[value] = createUpdater(value, onUpdateState);
 			return acc;
 		},
 		{} as ReducersRecord
