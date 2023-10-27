@@ -5,7 +5,7 @@ export type Reducers<ContextState> = (
 type Action<ContextState> = (currentValue: ContextState) => void | ContextState;
 type Rerender<State> = Record<
 	string,
-	(key: keyof State, state: State) => boolean
+	((key: keyof State, state: State) => boolean)[]
 >;
 type SliceState<RootState, Slice extends keyof RootState> = {
 	[Key in keyof RootState[Slice]]: RootState[Slice][Key];

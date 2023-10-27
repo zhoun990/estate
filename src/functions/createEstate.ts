@@ -64,13 +64,15 @@ export const createEstate = <RootState extends Record<any, Record<any, any>>>(
 		rootState,
 		({ key, prevuesState, newState, slice }) => {
 			const state = newState[slice];
-			Object.entries(state._rerenders || {}).forEach(
-				([rerenderId, rerender], i) => {
+			Object.entries(state._rerenders || {})
+				.flatMap(([rerenderId, rerenders], i) => {
+					return rerenders.map((rerender) => ({ rerenderId, rerender }));
+				})
+				.forEach(({ rerenderId, rerender }, i) => {
 					if (rerender(key, rootState)) {
 						delete state._rerenders![rerenderId];
 					}
-				}
-			);
+				});
 			if (options?.persist && options.persist.includes(slice)) {
 				setStorageItems(slice, {
 					[key]: newState[slice][key],
@@ -103,7 +105,7 @@ export const createEstate = <RootState extends Record<any, Record<any, any>>>(
 				for (const slice of options.persist) {
 					if (Object.prototype.hasOwnProperty.call(initialRootState, slice)) {
 						getStorageItems(slice).then((state) => {
-							reducer((actions) => actions[slice](state));
+							if (state) reducer((actions) => actions[slice](state));
 						});
 					}
 				}

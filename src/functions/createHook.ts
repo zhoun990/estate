@@ -69,12 +69,16 @@ export const createHook = <
 						return false;
 					};
 					reducer(() => (rootState) => {
-						if (!rootState[slice]._rerenders) {
-							rootState[slice]._rerenders = {};
-						}
 						const rerenders = rootState[slice]._rerenders;
-						if (rerenders) {
-							rerenders[rerenderId.current] = rerender;
+
+						if (!rerenders) {
+							rootState[slice]._rerenders = {
+								[rerenderId.current]: [rerender],
+							};
+						} else if (!rerenders[rerenderId.current]) {
+							rerenders[rerenderId.current] = [rerender];
+						} else {
+							rerenders[rerenderId.current].push(rerender);
 						}
 					});
 					return target[property];
