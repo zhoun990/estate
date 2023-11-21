@@ -104,7 +104,7 @@ export const createEstate = <RootState extends Record<any, Record<any, any>>>(
 			reducer,
 			initialRootState,
 			setup: (r) => {
-				r(initialRootState);
+				r(Object.assign({}, initialRootState));
 				if (!options?.persist) return;
 				for (const slice of options.persist) {
 					if (Object.prototype.hasOwnProperty.call(initialRootState, slice)) {
