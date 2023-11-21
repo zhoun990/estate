@@ -1,4 +1,5 @@
 import { RootStateType, Reducers, UpdaterCallback } from "../types";
+import { clone } from "./cclone";
 import { getObjectKeys, isCallable } from "./utils";
 export const createUpdater = <
 	RootState extends RootStateType,
@@ -21,7 +22,7 @@ export const createUpdater = <
 			const cb: Param | ((value: Param) => Param) = payload[key]!;
 			if (isCallable(cb)) {
 				try {
-					const clonedState = structuredClone(state[key]);
+					const clonedState = clone(state[key]);
 					const value = cb(clonedState);
 					if (value !== null && value !== undefined) state[key] = value;
 				} catch (err) {
