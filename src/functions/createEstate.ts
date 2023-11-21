@@ -31,7 +31,7 @@ export const createEstate = <RootState extends Record<any, Record<any, any>>>(
 		const getItem = (k: Extract<keyof RootState[keyof RootState], string>) =>
 			options?.storage?.getItem(k);
 
-		const items = {} as RootState[keyof RootState];
+		const items = rootState[slice]
 		if (getItem && typeof getItem === "function") {
 			for (const key in initialRootState[slice]) {
 				const item = JSON.parse((await getItem(key)) || "null");
