@@ -31,8 +31,8 @@ export const createEstate = <RootState extends Record<any, Record<any, any>>>(
 		const getItem = (k: Extract<keyof RootState[keyof RootState], string>) =>
 			options?.storage?.getItem(k);
 
-		const items = rootState[slice]
-		if (getItem && typeof getItem === "function") {
+		const items = rootState[slice];
+		if (typeof options?.storage?.getItem) {
 			for (const key in initialRootState[slice]) {
 				const item = JSON.parse((await getItem(key)) || "null");
 
@@ -52,7 +52,7 @@ export const createEstate = <RootState extends Record<any, Record<any, any>>>(
 			v: string
 		) => options?.storage?.setItem(k, v);
 
-		if (setItem && typeof setItem === "function") {
+		if (options?.storage?.setItem) {
 			for (const key in initialRootState[slice]) {
 				if (
 					Object.prototype.hasOwnProperty.call(initialRootState[slice], key) &&
