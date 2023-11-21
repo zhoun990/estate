@@ -1,5 +1,5 @@
 import { RootStateType, Reducers, UpdaterCallback } from "../types";
-import { clone } from "./cclone";
+import { clone } from "./clone";
 import { getObjectKeys, isCallable } from "./utils";
 export const createUpdater = <
 	RootState extends RootStateType,

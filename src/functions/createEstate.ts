@@ -2,7 +2,7 @@ import { Reducer, Options } from "../types";
 import { getObjectKeys, isPromise } from "./utils";
 import { createActionBuilders } from "./createActionBuilders";
 import { createHook } from "./createHook";
-import { clone } from "./cclone";
+import { clone } from "./clone";
 //[ToDo] createEstateの返り値にフックを追加し、setEstateで特定のキーに変更があった場合、変更された値を受け取り、最終的な値を返すMiddleware的な関数を設定できるようにする。
 //[ToDo] useEstateの引数を配列かStringに変更し、配列の場合は複数のスライスを参照するようにする。
 /**
