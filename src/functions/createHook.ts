@@ -35,9 +35,12 @@ export const createHook = <
 }) => {
 	return <T extends keyof RootState>(slice: T) => {
 		const [state, r] = useState(initialRootState);
-		const rerenderId = useRef(generateRandomID(10));
-		useEffect(() => {
+		const rerenderId = useRef("");
+		if (!rerenderId.current) {
+			rerenderId.current = generateRandomID(10);
 			setup?.(r);
+		}
+		useEffect(() => {
 			return () => {
 				reducer(() => (rootState) => {
 					const rerenders = rootState[slice]._rerenders;
