@@ -25,22 +25,20 @@ function isObject(obj: any): obj is Object {
 export const createHook = <
 	RootState extends StateWithRerenders<Record<any, Record<any, any>>>
 >({
-	initialRootState,
 	reducer,
 	setup,
+	getRootState,
 }: {
 	reducer: Reducer<RootState>;
-	initialRootState: RootState;
+	getRootState: () => RootState;
 	setup?: (rerender: React.Dispatch<React.SetStateAction<RootState>>) => void;
 }) => {
 	return <T extends keyof RootState>(slice: T) => {
-		const [state, r] = useState(initialRootState);
-		const rerenderId = useRef("");
-		if (!rerenderId.current) {
-			rerenderId.current = generateRandomID(10);
-			setup?.(r);
-		}
+		const [state, r] = useState(getRootState());
+		const rerenderId = useRef(generateRandomID(10));
+
 		useEffect(() => {
+			setup?.(r);
 			return () => {
 				reducer(() => (rootState) => {
 					const rerenders = rootState[slice]._rerenders;
