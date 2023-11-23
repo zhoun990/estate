@@ -34,18 +34,20 @@ export const createHook = <
 	setup?: (rerender: React.Dispatch<React.SetStateAction<RootState>>) => void;
 }) => {
 	return <T extends keyof RootState>(slice: T) => {
-		const [state, r] = useState(getRootState());
+		const [state, _r] = useState(getRootState());
 		const rerenderId = useRef(generateRandomID(10));
-
+		const r = useRef(_r);
 		useEffect(() => {
-			setup?.(r);
+			r.current = _r;
+			setup?.(r.current);
 			return () => {
-				reducer(() => (rootState) => {
-					const rerenders = rootState[slice]._rerenders;
-					if (rerenders) {
-						delete rerenders[rerenderId.current];
-					}
-				});
+				// reducer(() => (rootState) => {
+				// 	const rerenders = rootState[slice]._rerenders;
+				// 	if (rerenders) {
+				// 		delete rerenders[rerenderId.current];
+				// 	}
+				// });
+				r.current = () => {};
 			};
 		}, []);
 		return useCallback(() => {
@@ -64,7 +66,7 @@ export const createHook = <
 						currentRootState: RootState
 					) => {
 						if (property === key || key === "*") {
-							r(Object.assign({}, currentRootState));
+							r.current(Object.assign({}, currentRootState));
 							return true;
 						}
 						return false;

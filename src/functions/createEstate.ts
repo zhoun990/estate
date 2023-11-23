@@ -74,6 +74,7 @@ export const createEstate = <RootState extends Record<any, Record<any, any>>>(
 				.forEach(({ rerenderId, rerender }, i) => {
 					if (rerender(key, rootState)) {
 						delete state._rerenders![rerenderId];
+					} else {
 					}
 				});
 			if (options?.persist && options.persist.includes(slice)) {
@@ -86,8 +87,13 @@ export const createEstate = <RootState extends Record<any, Record<any, any>>>(
 	const reducer: Reducer<RootState> = (action) => {
 		const s = action(actions)(rootState);
 		if (s) {
-			rootState = s;
+			getObjectKeys(s).forEach((key) => {
+				rootState[key] = s[key];
+			});
 		}
+		// if (s) {
+		// 	rootState = s;
+		// }
 	};
 	const clearEstate = <T extends keyof RootState>(slice?: T) => {
 		if (slice) {
@@ -102,7 +108,7 @@ export const createEstate = <RootState extends Record<any, Record<any, any>>>(
 	return {
 		useEstate: createHook({
 			reducer,
-			getRootState: () =>  rootState,
+			getRootState: () => rootState,
 			setup: () => {
 				if (!options?.persist) return;
 				for (const slice of options.persist) {

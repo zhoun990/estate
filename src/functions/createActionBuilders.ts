@@ -17,18 +17,18 @@ export const createActionBuilders = <
 ) => {
 	type ReducersRecord = Record<keyof RootState, Reducers<RootState>>;
 	const updaters = getObjectKeys(rootState).reduce<ReducersRecord>(
-		(acc, value) => {
-			acc[value] = createUpdater(value, onUpdateState);
+		(acc, slice) => {
+			acc[slice] = createUpdater(slice, onUpdateState);
 			return acc;
 		},
 		{} as ReducersRecord
 	);
 	const actions = {} as Updaters<RootState>;
-	getObjectKeys(updaters).forEach((key) => {
-		actions[key] =
+	getObjectKeys(updaters).forEach((slice) => {
+		actions[slice] =
 			(...payload) =>
 			(currentRootState) =>
-				updaters[key](currentRootState, payload[0]);
+				updaters[slice](currentRootState, payload[0]);
 	});
 	return {
 		actions,
