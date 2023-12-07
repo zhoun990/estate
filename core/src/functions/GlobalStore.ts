@@ -1,4 +1,4 @@
-import { Middleware, RootStateType } from "../types";
+import { Middleware, Middlewares, NotFullSlice, RootStateType } from "../types";
 import { generateRandomID, getObjectKeys, isFunction } from "./utils";
 type ListenerCallback = <
 	Store extends RootStateType,
@@ -17,7 +17,7 @@ export class GlobalStore<Store extends RootStateType> {
 	public initialState: Store = {} as Store;
 	private middlewares: {
 		[slice in keyof Store]?: {
-			[key in keyof Store[slice]]?: Middleware<Store>;
+			[key in keyof Store[slice]]?: Middleware<Store, slice, key>;
 		};
 	} = {};
 	private listeners: Record<string, ListenerCallback> = {};
@@ -44,26 +44,43 @@ export class GlobalStore<Store extends RootStateType> {
 	public getValue(slice: keyof Store, key: keyof Store[typeof slice]) {
 		return this.store[slice]?.[key];
 	}
-	public setSlice(slice: keyof Store, newSlice: Store[typeof slice]) {
+	public setSlice(
+		slice: keyof Store,
+		newSlice: NotFullSlice<Store, typeof slice>
+	) {
 		getObjectKeys(newSlice).forEach((k) => {
-			this.setValue(slice, k, newSlice[k]);
+			const v = newSlice[k];
+			if (v) this.setValue(slice, k, v);
 		});
 		return this;
 	}
 	private async waitingUpdater() {
-		await this.waitingUpdate.shift()?.finally(this.waitingUpdater);
+		await this.waitingUpdate?.shift()?.finally(this.waitingUpdater);
+	}
+	public setMiddlewares(middlewares: Middlewares<Store>) {
+		getObjectKeys(middlewares).forEach((slice) => {
+			const ms = middlewares[slice];
+			if (ms)
+				getObjectKeys(ms).forEach((key) => {
+					const mk = ms[key];
+					if (mk) {
+						this.setMiddleware(slice, key, mk);
+					}
+				});
+		});
 	}
 	public setMiddleware(
 		slice: keyof Store,
 		key: keyof Store[typeof slice],
-		fn: Middleware<Store>
+		fn: Middleware<Store, typeof slice, typeof key>
 	) {
 		const ms = this.middlewares[slice];
 		if (!ms) {
-			this.middlewares[slice] = { [key]: fn } as {
-				[key in keyof Store[keyof Store]]?: Middleware<Store>;
-			};
-		} else ms[key] = fn;
+			this.middlewares[slice] = {};
+			const ms = this.middlewares[slice];
+			if (ms) ms[key] = fn;
+		}
+		if (ms) ms[key] = fn;
 	}
 	public middleware(
 		slice: keyof Store,

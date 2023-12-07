@@ -22,6 +22,9 @@ export const createEstate = <RootState extends RootStateType>(
 	) {
 		options.storage = localStorage;
 	}
+	if (options?.middlewares) {
+		globalStore.setMiddlewares(options?.middlewares);
+	}
 	const getStorageItems = async (
 		slice: keyof RootState
 	): Promise<RootState[keyof RootState]> => {

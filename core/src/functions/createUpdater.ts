@@ -1,5 +1,5 @@
 import { GlobalStore } from "./GlobalStore";
-import { RootStateType } from "../types";
+import { PayloadValue, RootStateType } from "../types";
 import { getObjectKeys, isCallable } from "./utils";
 import { Payload } from "../types";
 export const setter = <RootState extends RootStateType>(
@@ -11,32 +11,54 @@ export const setter = <RootState extends RootStateType>(
 		(acc, slice) => {
 			acc[slice] = (payload) => {
 				type State = RootState[typeof slice];
-				const store = GlobalStore.getInstance<RootState>();
+				const globalStore = GlobalStore.getInstance<RootState>();
 				// const store = new GlobalStore<RootState>();
-				getObjectKeys(payload).forEach((key) => {
-					type Param = State[keyof typeof payload];
-					const cb: Param | ((value: Param) => Param) = payload[key]!;
+				getObjectKeys(payload).forEach(async (key) => {
+					const cb: PayloadValue<
+						RootState,
+						typeof slice,
+						keyof typeof payload
+					> = payload[key]!;
 					if (isCallable(cb)) {
 						try {
-							const value = cb(store.getValue(slice, key));
-							if (value !== null && value !== undefined) {
-								store.setValue(slice, key, value);
+							const pr = await cb(
+								globalStore.getValue(slice, key),
+								globalStore.getSlice(slice),
+								globalStore.store
+							);
+							if (Array.isArray(pr)) {
+								const [v, sliceValue, rootValue] = pr;
+								if (sliceValue) globalStore.setSlice(slice, sliceValue);
+								if (rootValue) {
+									getObjectKeys(rootValue).forEach((slice) => {
+										const s = rootValue[slice];
+										if (s) globalStore.setSlice(slice, s);
+									});
+								}
 							}
-						} catch (err) {
-							console.error({ key, value: store.getValue(slice, key), err });
+							const value = Array.isArray(pr) ? pr[0] : pr;
+							if (value !== null && value !== undefined) {
+								globalStore.setValue(
+									slice,
+									key,
+									value as RootState[typeof slice][keyof typeof payload]
+								);
+							}
+						} catch (error) {
+							console.error("##@e-state/core:setter## :", {
+								key,
+								value: globalStore.getValue(slice, key),
+								error,
+							});
 						}
 					} else {
-						store.setValue(slice, key, cb);
+						globalStore.setValue(slice, key, cb);
 					}
 				});
 			};
 			return acc;
 		},
 		{} as {
-			[slice in keyof RootState]: (payload: {
-				[key in keyof RootState[slice]]?:
-					| RootState[slice][key]
-					| ((value: RootState[slice][key]) => RootState[slice][key]);
-			}) => void;
+			[slice in keyof RootState]: (payload: Payload<RootState, slice>) => void;
 		}
 	);

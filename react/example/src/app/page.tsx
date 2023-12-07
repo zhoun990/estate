@@ -10,21 +10,24 @@ export default function Home() {
 	// const { session } = useEstate("main");
 	// const [a,b] = useEstate("persist", 'main');
 
-	const { test, setEstate,session } = useEstate("main");
+	const { test, setEstate, session } = useEstate("main");
+	const { text } = useEstate("persist");
 
-	// useEffect(() => {
-	// 	setEstate({ test: "thisos" }).persist({ text: "waa" });
-	// 	const a = setEstates
-	// 		.main({ session: { id: "1", name: "foo" } })
-	// 		.main({ test: "helloe" })
-	// 		.main({ test: "hhow are you" })
-	// 		.persist({});
-	// }, []);
+	useEffect(() => {
+		// setEstate({ test: 1 }).persist({ text: 1 });
+		const a = setEstates
+			.main({ session: { id: "1", name: "foo" } })
+			.main({ test: "hello" })
+			.main({ test: "how are you" })
+			.persist({});
+	}, []);
 
 	return (
 		<div>
 			<div>render count:{count.current}</div>
-			<div>{test}</div>
+			<div>
+				{test},{text}
+			</div>
 			<div>id:{session?.id}</div>
 			<div>name:{session?.name}</div>
 			<ChildComponentA />
