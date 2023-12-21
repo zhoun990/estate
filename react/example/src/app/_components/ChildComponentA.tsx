@@ -1,4 +1,4 @@
-import { setEstates, useEstate } from "@/utils/estate";
+import { setEstates, useEstate } from "@/estate";
 import { useRef } from "react";
 
 export const ChildComponentA = () => {

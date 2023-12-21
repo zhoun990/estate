@@ -1,6 +1,6 @@
 {
 	"name": "@e-state/core",
-	"version": "0.2.11",
+	"version": "0.2.22",
 	"description": "A simple global state management library",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -18,11 +18,9 @@
 	"license": "MIT",
 	"dependencies": {},
 	"devDependencies": {
-		"@types/react": "^18.2.31",
 		"typescript": "^5.2.2"
 	},
-	"keywords": [
-		"react",
-		"state"
-	]
+	"volta": {
+		"node": "20.10.0"
+	}
 }

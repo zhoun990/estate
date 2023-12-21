@@ -21,34 +21,33 @@ export const createEstate = <RootState extends RootStateType>(
 	initialRootState: RootState,
 	options?: Options<RootState>
 ) => {
-	const { clearEstate, subscribe, set, store } = createEstateCore(
+	const { clearEstate, subscribe, set } = createEstateCore(
 		initialRootState,
 		options
 	);
+	const globalStore = GlobalStore.getInstance<RootState>();
 
 	const setEstates = getObjectKeys(initialRootState).reduce<
 		SetEstates<RootState>
 	>((pv, slice) => {
 		try {
-			pv[slice] = (payload) => {
-				set[slice](payload);
+			pv[slice] = (payload, forceRenderer) => {
+				set[slice](payload, forceRenderer);
 				return setEstates;
 			};
 		} catch (error) {
-			console.warn("^_^ Log \n file: createEstate.ts:50 \n error:", error);
+			console.warn("##@e-state/react:setEstates## :", error);
 		}
 
 		return pv;
-	}, {} as SetEstates<RootState>);
+	}, {} as SetEstates<RootState>); 
 	const useEstate = <Slice extends keyof RootState>(slice: Slice) => {
-		const [state, r] = useState(Object.assign({}, store[slice]));
+		const [state, r] = useState({});
 		const rerenderId = useRef(generateRandomID(20));
 		const unsubscribes = useRef<Record<string, () => void>>({});
-		const forceRenderer = () => {
-			r(Object.assign({}, store[slice]));
-		};
+
 		useEffect(() => {
-			r(Object.assign({}, store[slice]));
+			r({});
 			return () => {
 				Object.values(unsubscribes.current).forEach((unsubscribe) => {
 					unsubscribe();
@@ -56,28 +55,37 @@ export const createEstate = <RootState extends RootStateType>(
 			};
 		}, []);
 		return useCallback(() => {
-			const handler: ProxyHandler<typeof store> = {
-				get(target, key: keyof typeof store, receiver) {
+			const forceRenderer = () => {
+				r({});
+			};
+			const handler: ProxyHandler<RootState> = {
+				get(target, key: keyof RootState, receiver) {
 					if (!isKey(target, key)) return;
 					if (isFunction(target[key])) {
 						return target[key];
 					}
-					// sliceDetecter(key).forEach((slice) => {
+					// sliceDetecter(key).forEach((slice) => {})
 					const id = [slice, key, rerenderId.current].join("###");
-					if (!unsubscribes.current[id]) {
-						const unsb = subscribe(slice, key, rerenderId.current, () => {
-							r(Object.assign({}, store[slice]));
+					try {
+						if (!unsubscribes.current[id]) {
+							const unsb = subscribe(slice, key, rerenderId.current, () => {
+								r({});
+							});
+							unsubscribes.current[id] = unsb;
+						}
+					} catch (error) {
+						console.error("##@e-state/react:getter:handle_subscribe## :", {
+							rerenderId: rerenderId.current,
+							slice,
+							key,
+							error,
 						});
-						unsubscribes.current[id] = unsb;
 					}
-					// });
-
 					return target[key];
 				},
 			};
-
 			return {
-				...new Proxy(state, handler),
+				...new Proxy(globalStore.getSlice(slice), handler),
 				setEstate: setEstates[slice],
 				setEstates,
 				forceRenderer,
@@ -85,5 +93,5 @@ export const createEstate = <RootState extends RootStateType>(
 		}, [slice, state])();
 	};
 
-	return { useEstate, clearEstate, setEstates };
+	return { useEstate, clearEstate, setEstates, store: globalStore };
 };

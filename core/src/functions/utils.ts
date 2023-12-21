@@ -1,3 +1,5 @@
+// import rfdc from "rfdc";
+
 export const getObjectKeys = <T extends Record<any, any>>(
 	obj: T
 ): Array<keyof T> => (obj ? Object.keys(obj) : []);
@@ -25,10 +27,10 @@ export function generateRandomID(length: number) {
 
 	return randomID;
 }
-export const clone: <T = any>(
-	value: T,
-	options?: StructuredSerializeOptions | undefined
-) => T =
-	typeof structuredClone !== "undefined"
-		? structuredClone
-		: (value: any) => JSON.parse(JSON.stringify(value));
+// export const clone: <T = any>(
+// 	value: T,
+// 	options?: StructuredSerializeOptions | undefined
+// ) => T =
+// 	typeof structuredClone !== "undefined"
+// 		? structuredClone
+// 		: rfdc()

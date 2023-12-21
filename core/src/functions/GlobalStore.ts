@@ -1,19 +1,42 @@
-import { Middleware, Middlewares, NotFullSlice, RootStateType } from "../types";
+import {
+	Middleware,
+	Middlewares,
+	NotFullSlice,
+	RootStateType,
+	ListenerCallback,
+} from "../types";
 import { generateRandomID, getObjectKeys, isFunction } from "./utils";
-type ListenerCallback = <
-	Store extends RootStateType,
-	Slice extends keyof Store,
-	Key extends keyof Store[Slice]
->(args: {
-	slice: Slice;
-	key: Key;
-	listenerId: string;
-	newValue: Store[Slice][Key];
-	oldValue: Store[Slice][Key];
-}) => void;
-export class GlobalStore<Store extends RootStateType> {
+export class StoreHandler<Store extends RootStateType> {
+	constructor(public store: Store) {}
+	public getStore() {
+		return this.store;
+	}
+	// public getClonedStore(cloned = false) {
+	// 	return clone(this.store);
+	// }
+	public getSlice<Slice extends keyof Store>(slice: Slice) {
+		return this.store[slice];
+	}
+	// public getClonedSlice<Slice extends keyof Store>(slice: Slice) {
+	// 	return clone(this.store[slice]);
+	// }
+	public getValue<Slice extends keyof Store, Key extends keyof Store[Slice]>(
+		slice: Slice,
+		key: Key
+	) {
+		return this.store[slice]?.[key];
+	}
+	// public getClonedValue<
+	// 	Slice extends keyof Store,
+	// 	Key extends keyof Store[Slice]
+	// >(slice: Slice, key: Key) {
+	// 	return clone(this.store[slice]?.[key]);
+	// }
+}
+export class GlobalStore<
+	Store extends RootStateType
+> extends StoreHandler<Store> {
 	private static instance: GlobalStore<any>;
-	public store: Store = {} as Store;
 	public initialState: Store = {} as Store;
 	private middlewares: {
 		[slice in keyof Store]?: {
@@ -22,12 +45,13 @@ export class GlobalStore<Store extends RootStateType> {
 	} = {};
 	private listeners: Record<string, ListenerCallback> = {};
 	private waitingUpdate: Promise<any>[] = [];
+
 	private constructor(initialState: Store) {
 		if (GlobalStore.instance) {
 			return GlobalStore.instance;
 		}
+		super(initialState);
 		this.initialState = initialState;
-		this.store = initialState;
 		GlobalStore.instance = this;
 	}
 	public static getInstance<RootState extends RootStateType>(
@@ -38,21 +62,15 @@ export class GlobalStore<Store extends RootStateType> {
 		}
 		return GlobalStore.instance;
 	}
-	public getSlice(slice: keyof Store) {
-		return this.store[slice];
-	}
-	public getValue(slice: keyof Store, key: keyof Store[typeof slice]) {
-		return this.store[slice]?.[key];
-	}
 	public setSlice(
 		slice: keyof Store,
-		newSlice: NotFullSlice<Store, typeof slice>
+		newSlice: NotFullSlice<Store, typeof slice>,
+		forceRerender = false
 	) {
 		getObjectKeys(newSlice).forEach((k) => {
 			const v = newSlice[k];
-			if (v) this.setValue(slice, k, v);
+			if (v) this.setValue(slice, k, v, forceRerender);
 		});
-		return this;
 	}
 	private async waitingUpdater() {
 		await this.waitingUpdate?.shift()?.finally(this.waitingUpdater);
@@ -82,16 +100,15 @@ export class GlobalStore<Store extends RootStateType> {
 		}
 		if (ms) ms[key] = fn;
 	}
-	public middleware(
+	private _middleware(
 		slice: keyof Store,
 		key: keyof Store[typeof slice],
 		value: Store[keyof Store][keyof Store[keyof Store]]
 	) {
 		const fn = this.middlewares[slice]?.[key];
-		const exists = Object.keys(this.middlewares[slice] || {}).includes(
-			String(key)
-		);
-		if (!exists) return value;
+		if (!this.middlewares?.[slice]) return value;
+		if (!Object.keys(this.middlewares[slice] || {}).includes(String(key)))
+			return value;
 		if (isFunction(fn))
 			return fn({
 				value,
@@ -106,23 +123,28 @@ export class GlobalStore<Store extends RootStateType> {
 		key: keyof Store[typeof slice],
 		newValue:
 			| Store[typeof slice][typeof key]
-			| Promise<Store[typeof slice][typeof key]>
+			| Promise<Store[typeof slice][typeof key]>,
+		forceRerender = false
 	) {
-		if (!this.store[slice]) this.store[slice] = {} as Store[keyof Store];
-		const oldValue = this.store[slice][key];
-		if (newValue instanceof Promise) {
-			const updateValue = (value: Store[typeof slice][typeof key]) => {
-				this.store[slice][key] = this.middleware(slice, key, value);
-				this.getListeners(slice, key).forEach((callback) =>
+		if (!this.store[slice])
+			throw new Error("The slice does not exist in the store");
+		if (!Object.keys(this.store[slice]).includes(String(key)))
+			throw new Error("The key does not exist in the slice");
+		const oldValue = this.getValue(slice, key);
+		const updateValue = (value: Store[typeof slice][typeof key]) => {
+			this.store[slice][key] = this._middleware(slice, key, value);
+			this.getListeners(slice, key).forEach((callback) => {
+				if (forceRerender || oldValue !== this.getValue(slice, key))
 					callback({
-						newValue: this.store[slice][key],
+						newValue: this.getValue(slice, key),
 						oldValue,
-						slice: slice,
-						key: key,
+						slice,
+						key,
 						listenerId: "",
-					})
-				);
-			};
+					});
+			});
+		};
+		if (newValue instanceof Promise) {
 			if (this.waitingUpdate.length === 0) {
 				newValue.then(updateValue).finally(this.waitingUpdater);
 			} else {
@@ -133,26 +155,16 @@ export class GlobalStore<Store extends RootStateType> {
 				);
 			}
 		} else {
-			const updateValue = () => {
-				this.store[slice][key] = this.middleware(slice, key, newValue);
-				this.getListeners(slice, key).forEach((callback) =>
-					callback({
-						newValue: this.store[slice][key],
-						oldValue,
-						slice: slice,
-						key: key,
-						listenerId: "",
+			if (this.waitingUpdate.length === 0) {
+				updateValue(newValue);
+			} else {
+				this.waitingUpdate.push(
+					new Promise((resolve) => {
+						resolve(updateValue(newValue));
 					})
 				);
-			};
-			if (this.waitingUpdate.length === 0) {
-				updateValue();
-			} else {
-				this.waitingUpdate.push(new Promise(updateValue));
 			}
 		}
-
-		return this;
 	}
 	public subscribeSlice(
 		slice: keyof Store,
@@ -186,8 +198,21 @@ export class GlobalStore<Store extends RootStateType> {
 	private getListeners(slice: keyof Store, key: keyof Store[keyof Store]) {
 		return Object.keys(this.listeners)
 			.filter((id) => {
-				const path = id.split("###");
-				return path[0] === slice && path[1] === key;
+				try {
+					const path = id.split("###");
+					return path[0] === slice && path[1] === key;
+				} catch (error) {
+					console.error(
+						"##@e-state/core:GlobalStore:getListeners:filter_method## :",
+						{
+							id,
+							path: id.split("###"),
+							slice,
+							key,
+							error,
+						}
+					);
+				}
 			})
 			.map((id) => this.listeners[id]);
 	}

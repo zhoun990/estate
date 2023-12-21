@@ -1,4 +1,4 @@
-import { useEstate } from "@/utils/estate";
+import { useEstate } from "@/estate";
 import { memo, useRef } from "react";
 
 export const ChildComponentB = memo(() => {

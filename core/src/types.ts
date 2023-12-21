@@ -32,19 +32,15 @@ export type NotFullSlice<
 > = { [key in keyof RootStateType[Slice]]?: RootStateType[Slice][key] };
 
 export type NotFullRootState<RootState extends RootStateType> = {
-	[slice in keyof RootState]?: NotFullSlice<RootState,slice>;
+	[slice in keyof RootState]?: NotFullSlice<RootState, slice>;
 };
 export type PayloadReturnValue<
 	RootState extends RootStateType,
 	Slice extends keyof RootState,
 	Key extends keyof RootState[Slice]
-> =
-	| RootState[Slice][Key]
-	| [
-			RootState[Slice][Key],
-			NotFullSlice<RootState, Slice>?,
-			NotFullRootState<RootState>?
-	  ];
+> = RootState[Slice][Key];
+
+// | void;
 export type PayloadValue<
 	RootState extends RootStateType,
 	Slice extends keyof RootState,
@@ -53,7 +49,6 @@ export type PayloadValue<
 	| RootState[Slice][Key]
 	| ((
 			value: RootState[Slice][Key],
-			sliceState: RootState[Slice],
 			rootState: RootState
 	  ) =>
 			| Promise<PayloadReturnValue<RootState, Slice, Key>>
@@ -64,3 +59,14 @@ export type Payload<
 > = {
 	[key in keyof RootState[Slice]]?: PayloadValue<RootState, Slice, key>;
 };
+export type ListenerCallback = <
+	Store extends RootStateType,
+	Slice extends keyof Store,
+	Key extends keyof Store[Slice]
+>(args: {
+	slice: Slice;
+	key: Key;
+	listenerId: string;
+	newValue: Store[Slice][Key];
+	oldValue: Store[Slice][Key];
+}) => void;

@@ -1,8 +1,7 @@
+import { ListenerCallback, Options, RootStateType } from "../types";
 import { GlobalStore } from "./GlobalStore";
-import { Options } from "../types";
-import { RootStateType } from "../types";
-import { clone, getObjectKeys, isCallable } from "./utils";
 import { setter } from "./createUpdater";
+import { getObjectKeys } from "./utils";
 /**
  *
  * @param initialRootState - Key value pair of StateLabel and state
@@ -14,7 +13,7 @@ export const createEstate = <RootState extends RootStateType>(
 	initialRootState: RootState,
 	options?: Options<RootState>
 ) => {
-	const globalStore = GlobalStore.getInstance(clone(initialRootState));
+	const globalStore = GlobalStore.getInstance(initialRootState);
 	if (
 		typeof window !== "undefined" &&
 		options?.persist?.length &&
@@ -94,8 +93,16 @@ export const createEstate = <RootState extends RootStateType>(
 	return {
 		store: globalStore.store,
 		set: setter(initialRootState),
-		subscribe: (...args: Parameters<typeof globalStore.subscribe>) =>
-			globalStore.subscribe(...args),
+		subscribe: <
+			Slice extends keyof RootState,
+			Key extends keyof RootState[Slice]
+		>(
+			slice: Slice,
+			key: Key,
+			listenerId: string | undefined,
+			callback: ListenerCallback,
+			once = false
+		) => globalStore.subscribe(slice, key, listenerId, callback, once),
 		clearEstate,
 	};
 };
