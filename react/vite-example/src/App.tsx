@@ -5,7 +5,7 @@ import "./App.css";
 import { useEstate } from "./estate";
 
 function App() {
-  const { count, setEstate } = useEstate("persist");
+  const { count, setEstate, forceRenderer } = useEstate("persist");
 
   return (
     <>
@@ -19,7 +19,12 @@ function App() {
       </div>
       <h1>Vite + React</h1>
       <div className="card">
-        <button onClick={() => setEstate({ count: (count) => count + 1 })}>
+        <button
+          onClick={() => {
+            setEstate({ count: (count) => count + 1 });
+            // forceRenderer();
+          }}
+        >
           count is {count}
         </button>
         <p>
