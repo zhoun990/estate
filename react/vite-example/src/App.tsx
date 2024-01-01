@@ -6,6 +6,8 @@ import { useEstate } from "./estate";
 
 function App() {
   const { count, setEstate, forceRenderer } = useEstate("persist");
+  const main = useEstate("main");
+  console.log("^_^ Log \n file: App.tsx:10 \n foo:", main);
 
   return (
     <>
@@ -22,7 +24,6 @@ function App() {
         <button
           onClick={() => {
             setEstate({ count: (count) => count + 1 });
-            // forceRenderer();
           }}
         >
           count is {count}

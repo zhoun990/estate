@@ -23,11 +23,10 @@ export const setter = <RootState extends RootStateType>(
 						> = payload[key]!;
 						if (isCallable(cb)) {
 							try {
-								const pr = await cb(
+								const value = await cb(
 									globalStore.getValue(slice, key),
 									globalStore.getStore()
 								);
-								let value = Array.isArray(pr) ? pr[0] : pr;
 								try {
 									globalStore.setValue(
 										slice,

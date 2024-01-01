@@ -10,6 +10,7 @@ import {
 } from "@e-state/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SetEstates } from "../types";
+//[ToDO] 複数個所で初期化してsliceを追加可能に
 /**
  *
  * @param initialRootState - Key value pair of StateLabel and state
@@ -21,7 +22,7 @@ export const createEstate = <RootState extends RootStateType>(
   initialRootState: RootState,
   options?: Options<RootState>
 ) => {
-  const { clearEstate, subscribe, set } = createEstateCore(initialRootState, options);
+  const { clearEstate, set } = createEstateCore(initialRootState, options);
   const globalStore = GlobalStore.getInstance<RootState>();
 
   const setEstates = getObjectKeys(initialRootState).reduce<SetEstates<RootState>>(
@@ -43,34 +44,25 @@ export const createEstate = <RootState extends RootStateType>(
     const [_rerender, r] = useState(0);
     const rerenderId = useRef(generateRandomID(20));
     const unsubscribes = useRef<Record<string, () => void>>({});
-
     useEffect(() => {
-      console.log(
-        "^_^ Log \n file: createEstate.ts:50 \n import.meta.hot:",
-        import.meta.hot
-      );
-      if (import.meta.hot) {
-        import.meta.hot.accept();
-      }
-    }, [_rerender]);
-    useEffect(() => {
-      r(Date.now());
-      //   if (import.meta.hot) {
-      //     import.meta.hot.invalidate();
-      //   }
+      r((cv) => cv + 1);
       return () => {
         Object.values(unsubscribes.current).forEach((unsubscribe) => {
           unsubscribe();
         });
+        unsubscribes.current = {};
       };
     }, []);
     return useCallback(() => {
       const forceRenderer = () => {
-        r(Date.now());
+        r((cv) => cv + 1);
       };
       const handler: ProxyHandler<RootState> = {
         get(target, key: keyof RootState, receiver) {
-          if (!isKey(target, key)) return;
+          if (!isKey(target, key)) {
+            console.error("##@e-state/react:not-a-key## :", target, key);
+            return;
+          }
           if (isFunction(target[key])) {
             return target[key];
           }
@@ -78,16 +70,8 @@ export const createEstate = <RootState extends RootStateType>(
           const id = [slice, key, rerenderId.current].join("###");
           try {
             if (!unsubscribes.current[id]) {
-              const unsb = subscribe(slice, key, rerenderId.current, () => {
+              const unsb = globalStore.subscribe(slice, key, rerenderId.current, () => {
                 r((cv) => cv + 1);
-				
-                console.log(
-                  "^_^ Log \n file: createEstate.ts:97 \n Date.now():",
-                  Date.now()
-                );
-                if (import.meta.hot) {
-                  import.meta.hot.accept();
-                }
               });
               unsubscribes.current[id] = unsb;
             }

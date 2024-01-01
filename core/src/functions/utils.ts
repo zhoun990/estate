@@ -1,4 +1,4 @@
-// import rfdc from "rfdc";
+import rfdc from "rfdc";
 
 export const getObjectKeys = <T extends Record<any, any>>(
 	obj: T
@@ -27,10 +27,10 @@ export function generateRandomID(length: number) {
 
 	return randomID;
 }
-// export const clone: <T = any>(
-// 	value: T,
-// 	options?: StructuredSerializeOptions | undefined
-// ) => T =
-// 	typeof structuredClone !== "undefined"
-// 		? structuredClone
-// 		: rfdc()
+export const clone: <T = any>(
+	value: T,
+	options?: StructuredSerializeOptions | undefined
+) => T =
+	typeof structuredClone !== "undefined"
+		? structuredClone
+		: rfdc()
