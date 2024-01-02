@@ -2,6 +2,7 @@ import { ListenerCallback, Options, RootStateType } from "../types";
 import { GlobalStore } from "./GlobalStore";
 import { setter } from "./createUpdater";
 import { clone, getObjectKeys } from "./utils";
+export const settings = { debag: false };
 /**
  *
  * @param initialRootState - Key value pair of StateLabel and state
@@ -13,6 +14,7 @@ export const createEstate = <RootState extends RootStateType>(
   initialRootState: RootState,
   options?: Options<RootState>
 ) => {
+  settings.debag = !!options?.debag;
   const globalStore = GlobalStore.getInstance(clone(initialRootState));
   if (typeof window !== "undefined" && options?.persist?.length && !options.storage) {
     options.storage = localStorage;

@@ -5,9 +5,9 @@ import "./App.css";
 import { useEstate } from "./estate";
 
 function App() {
-  const { count, setEstate, forceRenderer } = useEstate("persist");
+  const { count, setEstate, forceRenderer, count2 } = useEstate("persist");
+  console.log("^_^ ::: file: App.tsx:9 ::: count2:\n", count, count2);
   const main = useEstate("main");
-  console.log("^_^ Log \n file: App.tsx:10 \n foo:", main);
 
   return (
     <>
@@ -23,7 +23,11 @@ function App() {
       <div className="card">
         <button
           onClick={() => {
-            setEstate({ count: (count) => count + 1 });
+            // for (let index = 0; index <= 100; index++) {
+              // console.log("^_^ ::: file: App.tsx:27 ::: index:\n", index);
+              setEstate({ count: (count) => count + 1 });
+              // setEstate({ count2: (count) => count + 1 });
+            // }
           }}
         >
           count is {count}

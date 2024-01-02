@@ -9,6 +9,7 @@ export const { useEstate, clearEstate, setEstates } = createEstate(
     },
     persist: {
       count: 0,
+      count2: 0,
     },
   },
   {

@@ -4,8 +4,14 @@ import {
   NotFullSlice,
   RootStateType,
   ListenerCallback,
+  NotFullRootState,
 } from "../types";
-import { generateRandomID, getObjectKeys, isFunction } from "./utils";
+import { settings } from "./createEstate";
+import { clone, generateRandomID, getObjectKeys, isFunction } from "./utils";
+const debag = (...data: any[]) => {
+  if (settings.debag) console.log("[DEBAG_LOG]::", ...data);
+};
+
 export class StoreHandler<Store extends RootStateType> {
   constructor(public store: Store) {}
   public getStore() {
@@ -42,7 +48,23 @@ export class GlobalStore<Store extends RootStateType> extends StoreHandler<Store
     };
   } = {};
   private listeners: Record<string, ListenerCallback> = {};
-  private waitingUpdate: Promise<any>[] = [];
+  private valueProcessing = false;
+  private waitingUpdate: ((
+    store: Store
+  ) => Promise<
+    [
+      keyof Store,
+      keyof Store[keyof Store],
+      Store[keyof Store][keyof Store[keyof Store]],
+      boolean?
+    ]
+  >)[] = [];
+  private waitingSetValue: [
+    keyof Store,
+    keyof Store[keyof Store],
+    Store[keyof Store][keyof Store[keyof Store]],
+    boolean?
+  ][] = [];
 
   private constructor(initialState: Store) {
     if (GlobalStore.instance) {
@@ -68,13 +90,11 @@ export class GlobalStore<Store extends RootStateType> extends StoreHandler<Store
     getObjectKeys(newSlice).forEach((k) => {
       if (Object.prototype.hasOwnProperty.call(newSlice, k)) {
         const v = newSlice[k]!;
-        this.setValue(slice, k, v, forceRerender);
+        this.setValue(slice, k, async () => v, forceRerender);
       }
     });
   }
-  private async waitingUpdater() {
-    await this.waitingUpdate?.shift()?.finally(this.waitingUpdater);
-  }
+
   public setMiddlewares(middlewares: Middlewares<Store>) {
     getObjectKeys(middlewares).forEach((slice) => {
       const ms = middlewares[slice];
@@ -117,51 +137,93 @@ export class GlobalStore<Store extends RootStateType> extends StoreHandler<Store
       });
     return fn;
   }
+  private async waitingUpdater(tempStore?: NotFullRootState<Store>) {
+    if (this.valueProcessing) return;
+    this.valueProcessing = true;
+    debag(
+      "^_^ ::: file: GlobalStore.ts:143 :::  this.waitingUpdate:\n",
+      this.waitingUpdate
+    );
+    const promise = this.waitingUpdate?.shift();
+    let values: [
+      keyof Store,
+      keyof Store[keyof Store],
+      Store[keyof Store][keyof Store[keyof Store]],
+      boolean?
+    ] = [] as any;
+    if (promise) {
+      values = await promise({ ...this.getStore(), ...tempStore });
+      debag("^_^ ::: file: GlobalStore.ts:155 ::: values:\n", values);
+      this.waitingSetValue.push(values);
+    }
+    if (this.waitingUpdate.length) {
+      if (!tempStore) {
+        tempStore = {};
+      } else if (values.length) {
+        if (!tempStore[values[0]]) tempStore[values[0]] = {};
+        tempStore[values[0]]![values[1]] = values[2];
+      }
+      debag("^_^ ::: file: GlobalStore.ts:160 ::: tempStore:\n", tempStore);
+      this.valueProcessing = false;
+      this.waitingUpdater(tempStore);
+    } else {
+      for (let index = 0; index < this.waitingSetValue.length; index++) {
+        this.updateValue(...this.waitingSetValue[index]);
+      }
+      this.waitingSetValue = [];
+      this.valueProcessing = false;
+    }
+  }
+  private updateValue(
+    slice: keyof Store,
+    key: keyof Store[typeof slice],
+    value: Store[typeof slice][typeof key],
+    forceRerender?: boolean
+  ) {
+    const oldValue = this.getValue(slice, key);
+    debag("^_^ ::: file: GlobalStore.ts:174 ::: oldValue:\n", oldValue);
+
+    this.store[slice][key] = this._middleware(slice, key, value);
+    debag(
+      "^_^ ::: file: GlobalStore.ts:183 ::: this.store[slice][key]:\n",
+      this.store[slice][key]
+    );
+    this.getListeners(slice, key).forEach((callback) => {
+      if (forceRerender || oldValue !== this.getValue(slice, key))
+        callback({
+          newValue: this.getValue(slice, key),
+          oldValue,
+          slice,
+          key,
+          listenerId: "",
+        });
+    });
+  }
   public setValue(
     slice: keyof Store,
     key: keyof Store[typeof slice],
-    newValue: Store[typeof slice][typeof key] | Promise<Store[typeof slice][typeof key]>,
+    newValueFn: (rootState: Store) => Promise<Store[typeof slice][typeof key]>,
     forceRerender = false
   ) {
     if (!Object.prototype.hasOwnProperty.call(this.store, slice))
       throw new Error("The slice does not exist in the store");
     if (!Object.prototype.hasOwnProperty.call(this.store[slice], key))
       throw new Error("The key does not exist in the slice");
-    const oldValue = this.getValue(slice, key);
-    const updateValue = (value: Store[typeof slice][typeof key]) => {
-      this.store[slice][key] = this._middleware(slice, key, value);
-      this.getListeners(slice, key).forEach((callback) => {
-        if (forceRerender || oldValue !== this.getValue(slice, key))
-          callback({
-            newValue: this.getValue(slice, key),
-            oldValue,
-            slice,
-            key,
-            listenerId: "",
-          });
-      });
-    };
-    if (newValue instanceof Promise) {
-      if (this.waitingUpdate.length === 0) {
-        newValue.then(updateValue).finally(this.waitingUpdater);
-      } else {
-        this.waitingUpdate.push(
-          new Promise((resolve) => {
-            newValue.then(updateValue).finally(() => resolve(true));
-          })
-        );
-      }
-    } else {
-      if (this.waitingUpdate.length === 0) {
-        updateValue(newValue);
-      } else {
-        this.waitingUpdate.push(
-          new Promise((resolve) => {
-            resolve(updateValue(newValue));
-          })
-        );
-      }
-    }
+    debag(
+      "^_^ ::: file: GlobalStore.ts:209 ::: this.waitingUpdate:\n",
+      this.waitingUpdate
+    );
+    this.waitingUpdate.push(async (store: Store) => [
+      slice,
+      key,
+      await newValueFn(store),
+      forceRerender,
+    ]);
+    this.waitingUpdater();
+    debag(
+      "^_^ ::: file: GlobalStore.ts:220 :::  this.waitingUpdate:\n",
+      this.waitingUpdate
+    );
   }
   public subscribeSlice(
     slice: keyof Store,

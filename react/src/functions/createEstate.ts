@@ -33,7 +33,7 @@ export const createEstate = <RootState extends RootStateType>(
           return setEstates;
         };
       } catch (error) {
-        console.warn("##@e-state/react:setEstates## :", error);
+        throw new Error("##@e-state/react:setEstates## :", { cause: error });
       }
 
       return pv;
@@ -60,8 +60,7 @@ export const createEstate = <RootState extends RootStateType>(
       const handler: ProxyHandler<RootState> = {
         get(target, key: keyof RootState, receiver) {
           if (!isKey(target, key)) {
-            console.error("##@e-state/react:not-a-key## :", target, key);
-            return;
+            throw new Error("##@e-state/react:not-a-key## :", { cause: { target, key } });
           }
           if (isFunction(target[key])) {
             return target[key];
@@ -76,11 +75,13 @@ export const createEstate = <RootState extends RootStateType>(
               unsubscribes.current[id] = unsb;
             }
           } catch (error) {
-            console.error("##@e-state/react:getter:handle_subscribe## :", {
-              rerenderId: rerenderId.current,
-              slice,
-              key,
-              error,
+            throw new Error("##@e-state/react:getter:handle_subscribe## :", {
+              cause: {
+                rerenderId: rerenderId.current,
+                slice,
+                key,
+                error,
+              },
             });
           }
           return target[key];
