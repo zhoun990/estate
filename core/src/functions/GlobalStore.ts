@@ -9,7 +9,7 @@ import {
 import { settings } from "./createEstate";
 import { clone, generateRandomID, getObjectKeys, isFunction } from "./utils";
 const debag = (...data: any[]) => {
-  if (settings.debag) console.log("[DEBAG_LOG]::", ...data);
+  if (settings.debag) console.log("[DEBAG_LOG]", ...data);
 };
 
 export class StoreHandler<Store extends RootStateType> {
@@ -64,6 +64,12 @@ export class GlobalStore<Store extends RootStateType> extends StoreHandler<Store
     keyof Store[keyof Store],
     Store[keyof Store][keyof Store[keyof Store]],
     boolean?
+  ][] = [];
+  private waitingListen: [
+    ListenerCallback[],
+    boolean,
+    keyof Store,
+    keyof Store[keyof Store]
   ][] = [];
 
   private constructor(initialState: Store) {
@@ -137,13 +143,17 @@ export class GlobalStore<Store extends RootStateType> extends StoreHandler<Store
       });
     return fn;
   }
-  private async waitingUpdater(tempStore?: NotFullRootState<Store>) {
-    if (this.valueProcessing) return;
+  private async waitingUpdater(_tempStore?: NotFullRootState<Store>) {
+    if (this.valueProcessing && !_tempStore) {
+      debag(
+        "waitingUpdater():called_while_processing:updater_count_is:",
+        this.waitingUpdate.length
+      );
+      return;
+    }
+    debag("waitingUpdater():start:updater_count_is:", this.waitingUpdate.length);
     this.valueProcessing = true;
-    debag(
-      "^_^ ::: file: GlobalStore.ts:143 :::  this.waitingUpdate:\n",
-      this.waitingUpdate
-    );
+
     const promise = this.waitingUpdate?.shift();
     let values: [
       keyof Store,
@@ -152,53 +162,95 @@ export class GlobalStore<Store extends RootStateType> extends StoreHandler<Store
       boolean?
     ] = [] as any;
     if (promise) {
-      values = await promise({ ...this.getStore(), ...tempStore });
-      debag("^_^ ::: file: GlobalStore.ts:155 ::: values:\n", values);
-      this.waitingSetValue.push(values);
+      try {
+        values = await promise({ ...this.getStore(), ..._tempStore });
+        debag("waitingUpdater():resolved_promise_value_is:\n", values);
+        this.waitingSetValue.push(values);
+      } catch (error) {
+        debag("waitingUpdater():promise_resolving_error", error);
+      }
     }
     if (this.waitingUpdate.length) {
-      if (!tempStore) {
-        tempStore = {};
-      } else if (values.length) {
-        if (!tempStore[values[0]]) tempStore[values[0]] = {};
-        tempStore[values[0]]![values[1]] = values[2];
+      debag("waitingUpdater():call_next_waitingUpdater");
+      if (!_tempStore) {
+        _tempStore = {};
       }
-      debag("^_^ ::: file: GlobalStore.ts:160 ::: tempStore:\n", tempStore);
-      this.valueProcessing = false;
-      this.waitingUpdater(tempStore);
+      if (values.length) {
+        if (!_tempStore[values[0]]) {
+          try {
+            _tempStore[values[0]] = clone(this.getStore()[values[0]]);
+          } catch (error) {
+            debag(
+              "waitingUpdater():error_on_set_temp_slice",
+              error,
+              this.getStore()[values[0]]
+            );
+          }
+        }
+        _tempStore[values[0]]![values[1]] = values[2];
+        debag("waitingUpdater():added_updated_value_to_temp_store");
+      }
+      this.waitingUpdater(_tempStore);
+      debag("waitingUpdater():end_with:called_next_waitingUpdater");
     } else {
-      for (let index = 0; index < this.waitingSetValue.length; index++) {
-        this.updateValue(...this.waitingSetValue[index]);
-      }
-      this.waitingSetValue = [];
-      this.valueProcessing = false;
-    }
-  }
-  private updateValue(
-    slice: keyof Store,
-    key: keyof Store[typeof slice],
-    value: Store[typeof slice][typeof key],
-    forceRerender?: boolean
-  ) {
-    const oldValue = this.getValue(slice, key);
-    debag("^_^ ::: file: GlobalStore.ts:174 ::: oldValue:\n", oldValue);
-
-    this.store[slice][key] = this._middleware(slice, key, value);
-    debag(
-      "^_^ ::: file: GlobalStore.ts:183 ::: this.store[slice][key]:\n",
-      this.store[slice][key]
-    );
-    this.getListeners(slice, key).forEach((callback) => {
-      if (forceRerender || oldValue !== this.getValue(slice, key))
-        callback({
-          newValue: this.getValue(slice, key),
-          oldValue,
+      debag("waitingUpdater():no_updater_in_queue:update_stacked_values");
+      for (let i = 0; i < this.waitingSetValue.length; i++) {
+        debag("waitingUpdater():update_value_start");
+        const [slice, key, value, forceRerender] = this.waitingSetValue[i];
+        const oldValue = this.getValue(slice, key);
+        this.store[slice][key] = this._middleware(slice, key, value);
+        this.waitingListen.push([
+          this.getListeners(slice, key),
+          forceRerender || oldValue !== this.getValue(slice, key),
           slice,
           key,
-          listenerId: "",
-        });
-    });
+        ]);
+      }
+      debag("waitingUpdater():update_value_end");
+      const updateId = String(Date.now());
+      for (let i = 0; i < this.waitingListen.length; i++) {
+        const [listers, call, slice, key] = this.waitingListen[i];
+        if (call) {
+          debag("waitingUpdater():call_listers_start");
+          for (let index = 0; index < listers.length; index++) {
+            const callback = listers[index];
+            callback({
+              slice,
+              key,
+              updateId,
+            });
+          }
+        }
+      }
+      debag("waitingUpdater():call_listers_end");
+      this.waitingSetValue = [];
+      this.waitingListen = [];
+      this.valueProcessing = false;
+      debag("waitingUpdater():end_with:updated_all_changed_values");
+    }
   }
+  // private updateValue(
+  //   slice: keyof Store,
+  //   key: keyof Store[typeof slice],
+  //   value: Store[typeof slice][typeof key],
+  //   forceRerender?: boolean
+  // ) {
+  //   debag("updateValue():start");
+  //   const oldValue = this.getValue(slice, key);
+  //   this.store[slice][key] = this._middleware(slice, key, value);
+  //   debag("updateValue():is_new_value:", oldValue !== this.getValue(slice, key));
+  //   this.getListeners(slice, key).forEach((callback) => {
+  //     if (forceRerender || oldValue !== this.getValue(slice, key))
+  //       callback({
+  //         newValue: this.getValue(slice, key),
+  //         oldValue,
+  //         slice,
+  //         key,
+  //         listenerId: "",
+  //       });
+  //   });
+  //   debag("updateValue():end");
+  // }
   public setValue(
     slice: keyof Store,
     key: keyof Store[typeof slice],
@@ -209,10 +261,7 @@ export class GlobalStore<Store extends RootStateType> extends StoreHandler<Store
       throw new Error("The slice does not exist in the store");
     if (!Object.prototype.hasOwnProperty.call(this.store[slice], key))
       throw new Error("The key does not exist in the slice");
-    debag(
-      "^_^ ::: file: GlobalStore.ts:209 ::: this.waitingUpdate:\n",
-      this.waitingUpdate
-    );
+    debag("setValue():start");
     this.waitingUpdate.push(async (store: Store) => [
       slice,
       key,
@@ -220,10 +269,7 @@ export class GlobalStore<Store extends RootStateType> extends StoreHandler<Store
       forceRerender,
     ]);
     this.waitingUpdater();
-    debag(
-      "^_^ ::: file: GlobalStore.ts:220 :::  this.waitingUpdate:\n",
-      this.waitingUpdate
-    );
+    debag("setValue():end");
   }
   public subscribeSlice(
     slice: keyof Store,
@@ -244,10 +290,10 @@ export class GlobalStore<Store extends RootStateType> extends StoreHandler<Store
   ) {
     const path = [slice, key, listenerId || generateRandomID(20)];
     this.setLister(path.join("###"), (args) => {
-      callback(args);
       if (once) {
         this.unsubscribe(path.join("###"));
       }
+      callback(args);
     });
     return () => this.unsubscribe(path.join("###"));
   }

@@ -24,7 +24,6 @@ export const createEstate = <RootState extends RootStateType>(
 ) => {
   const { clearEstate, set } = createEstateCore(initialRootState, options);
   const globalStore = GlobalStore.getInstance<RootState>();
-
   const setEstates = getObjectKeys(initialRootState).reduce<SetEstates<RootState>>(
     (pv, slice) => {
       try {
@@ -41,11 +40,11 @@ export const createEstate = <RootState extends RootStateType>(
     {} as SetEstates<RootState>
   );
   const useEstate = <Slice extends keyof RootState>(slice: Slice) => {
-    const [_rerender, r] = useState(0);
+    const [_rerender, r] = useState("0");
     const rerenderId = useRef(generateRandomID(20));
     const unsubscribes = useRef<Record<string, () => void>>({});
     useEffect(() => {
-      r((cv) => cv + 1);
+      r(Date.now().toString());
       return () => {
         Object.values(unsubscribes.current).forEach((unsubscribe) => {
           unsubscribe();
@@ -55,23 +54,31 @@ export const createEstate = <RootState extends RootStateType>(
     }, []);
     return useCallback(() => {
       const forceRenderer = () => {
-        r((cv) => cv + 1);
+        r(Date.now().toString());
       };
       const handler: ProxyHandler<RootState> = {
         get(target, key: keyof RootState, receiver) {
           if (!isKey(target, key)) {
             throw new Error("##@e-state/react:not-a-key## :", { cause: { target, key } });
           }
-          if (isFunction(target[key])) {
+          if (
+            isFunction(target[key]) ||
+            ["setEstate", "setEstates", "forceRenderer"].includes(String(key))
+          ) {
             return target[key];
           }
           // sliceDetecter(key).forEach((slice) => {})
           const id = [slice, key, rerenderId.current].join("###");
           try {
             if (!unsubscribes.current[id]) {
-              const unsb = globalStore.subscribe(slice, key, rerenderId.current, () => {
-                r((cv) => cv + 1);
-              });
+              const unsb = globalStore.subscribe(
+                slice,
+                key,
+                rerenderId.current,
+                ({ updateId }) => {
+                  r(updateId);
+                }
+              );
               unsubscribes.current[id] = unsb;
             }
           } catch (error) {
@@ -87,12 +94,21 @@ export const createEstate = <RootState extends RootStateType>(
           return target[key];
         },
       };
-      return {
-        ...new Proxy(globalStore.getSlice(slice), handler),
-        setEstate: setEstates[slice],
-        setEstates,
-        forceRenderer,
-      };
+      return new Proxy(
+        {
+          ...globalStore.getSlice(slice),
+          setEstate: setEstates[slice],
+          setEstates,
+          forceRenderer,
+        },
+        handler
+      );
+      // return {
+      //   ...new Proxy(globalStore.getSlice(slice), handler),
+      //   setEstate: setEstates[slice],
+      //   setEstates,
+      //   forceRenderer,
+      // };
     }, [slice, _rerender])();
   };
 

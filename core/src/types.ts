@@ -64,7 +64,5 @@ export type ListenerCallback = <
 >(args: {
   slice: Slice;
   key: Key;
-  listenerId: string;
-  newValue: Store[Slice][Key];
-  oldValue: Store[Slice][Key];
+  updateId: string;
 }) => void;

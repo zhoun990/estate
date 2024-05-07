@@ -68,9 +68,9 @@ export const createEstate = <RootState extends RootStateType>(
       globalStore.subscribeSlice(
         slice,
         "THIS_IS_A_LISTENER_FOR_PERSISTANCE",
-        ({ key, newValue }) => {
+        ({ key }) => {
           setStorageItems(slice, {
-            [key]: newValue,
+            [key]: globalStore.getValue(slice, key),
           });
         }
       );
