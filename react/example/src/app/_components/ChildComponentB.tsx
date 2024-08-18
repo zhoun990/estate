@@ -12,7 +12,7 @@ export const ChildComponentB = memo(() => {
 		<div className="border">
 			---Child B---
 			<div>render count:{count.current}</div>
-			<div>persist text:{text}</div>
+			<div>persist text:{text()}</div>
 			<button
 				className="border m-2 p-2"
 				onClick={() => {

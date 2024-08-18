@@ -6,3 +6,8 @@ export type SetEstates<RootState extends RootStateType> = {
 		forceRenderer?: boolean
 	) => SetEstates<RootState>;
 };
+export type Getter<
+	RootState extends RootStateType,
+	Slice extends keyof RootState,
+	Key extends keyof RootState[Slice]
+> = () => RootState[Slice][Key];

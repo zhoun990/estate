@@ -9,9 +9,9 @@ export const ChildComponentA = memo(() => {
 		<div className="border">
 			---Child A---
 			<div>render count:{count.current}</div>
-			<div>id:{session?.id}</div>
-			<div>name:{session?.name}</div>
-			{session ? (
+			<div>id:{session()?.id}</div>
+			<div>name:{session()?.name}</div>
+			{session() ? (
 				<button
 					className="border m-2 p-2"
 					onClick={() => {

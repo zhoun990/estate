@@ -32,7 +32,7 @@ export default function Home() {
 				}}
 				style={{ border: "1px solid red", padding: "10px", margin: "10px" }}
 			>
-				click me: {text}
+				click me: {text()}
 			</button>
 			{/* <div>id:{session?.id}</div>
 			<div>name:{session?.name}</div> */}

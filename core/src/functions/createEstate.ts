@@ -1,8 +1,7 @@
 import { ListenerCallback, Options, RootStateType } from "../types";
-import { GlobalStore } from "./GlobalStore";
+import { GlobalStore, settings } from "./GlobalStore";
 import { setter } from "./createUpdater";
 import { clone, getObjectKeys } from "./utils";
-export const settings = { debag: false };
 /**
  *
  * @param initialRootState - Key value pair of StateLabel and state
