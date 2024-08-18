@@ -16,7 +16,7 @@ export const ChildComponentB = memo(() => {
 			<button
 				className="border m-2 p-2"
 				onClick={() => {
-					setEstate({ text: (current) => current + "a" })
+					setEstate({ text: (current) => current + 1 });
 				}}
 			>
 				add
@@ -24,7 +24,7 @@ export const ChildComponentB = memo(() => {
 			<button
 				className="border m-2 p-2"
 				onClick={() => {
-					setEstate({ text: "" });
+					setEstate({ text: 0 });
 				}}
 			>
 				clear

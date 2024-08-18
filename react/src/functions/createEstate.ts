@@ -109,7 +109,7 @@ export const createEstate = <RootState extends RootStateType>(
       //   setEstates,
       //   forceRenderer,
       // };
-    }, [slice, _rerender])();
+    }, [slice])();
   };
 
   return { useEstate, clearEstate, setEstates, store: globalStore };

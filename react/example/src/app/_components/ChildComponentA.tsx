@@ -1,7 +1,7 @@
 import { setEstates, useEstate } from "@/estate";
-import { useRef } from "react";
+import { memo, useRef } from "react";
 
-export const ChildComponentA = () => {
+export const ChildComponentA = memo(() => {
 	const count = useRef(0);
 	count.current++;
 	const { session, setEstate } = useEstate("main");
@@ -36,4 +36,4 @@ export const ChildComponentA = () => {
 			)}
 		</div>
 	);
-};
+});
