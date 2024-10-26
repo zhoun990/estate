@@ -1,4 +1,7 @@
 import rfdc from "rfdc";
+import { RootStateType, Options, ListenerCallback } from "../types";
+import { setter } from "./createUpdater";
+import { settings, GlobalStore } from "./GlobalStore";
 
 export const getObjectKeys = <T extends Record<any, any>>(
 	obj: T
@@ -30,7 +33,32 @@ export function generateRandomID(length: number) {
 export const clone: <T = any>(
 	value: T,
 	options?: StructuredSerializeOptions | undefined
-) => T =
-	typeof structuredClone !== "undefined"
-		? structuredClone
-		: rfdc()
+) => T = typeof structuredClone !== "undefined" ? structuredClone : rfdc();
+// for JSON#stringify
+export function replacer(key: string, value: any) {
+	if (value instanceof Map) {
+		return {
+			dataType: "Map",
+			value: Array.from(value.entries()), // or with spread: value: [...value]
+		};
+	} else if (value instanceof Set) {
+		return {
+			dataType: "Set",
+			value: Array.from(value),
+		};
+	} else {
+		return value;
+	}
+}
+
+// for JSON#parse
+export function reviver(key: string, value: any) {
+	if (typeof value === "object" && value !== null) {
+		if (value.dataType === "Map") {
+			return new Map(value.value);
+		} else if (value.dataType === "Set") {
+			return new Set(value.value);
+		}
+	}
+	return value;
+}

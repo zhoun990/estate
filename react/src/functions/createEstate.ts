@@ -7,7 +7,7 @@ import {
 	RootStateType,
 	debag,
 } from "@e-state/core";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Getter, SetEstates } from "../types";
 //[ToDO] 複数個所で初期化してsliceを追加可能に
 /**
@@ -29,7 +29,6 @@ export const createEstate = <RootState extends RootStateType>(
 		try {
 			pv[slice] = (payload, forceRenderer) => {
 				set[slice](payload, forceRenderer);
-				return setEstates;
 			};
 		} catch (error) {
 			throw new Error("##@e-state/react:setEstates## :", { cause: error });
@@ -50,10 +49,11 @@ export const createEstate = <RootState extends RootStateType>(
 				unsubscribes.current.clear();
 			};
 		}, []);
+
 		return {
-			...Object.entries(globalStore.getSlice(slice)).reduce<{
-				[key in keyof RootState[Slice]]: Getter<RootState, Slice, key>;
-			}>((pv, [key, value]) => {
+			...Array.from(globalStore.store.get(slice)?.keys() || []).reduce<{
+				[key in keyof RootState[Slice]]: Getter<RootState[Slice][key]>;
+			}>((pv, key) => {
 				const getter = () => {
 					const id = [slice, key, rerenderId.current].join("###");
 					try {
@@ -79,15 +79,14 @@ export const createEstate = <RootState extends RootStateType>(
 							},
 						});
 					}
-					return value;
+					return globalStore.store.get(slice)?.get(key);
 				};
-				pv[key as keyof RootState[Slice]] = getter;
+				pv[key as keyof RootState[Slice]] = useCallback(getter, []);
 				return pv;
 			}, {} as any),
 			setEstate: setEstates[slice],
 			setEstates,
 		};
 	};
-
 	return { useEstate, clearEstate, setEstates, store: globalStore };
 };

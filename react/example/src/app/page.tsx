@@ -11,7 +11,8 @@ export default function Home() {
 	// const [a,b] = useEstate("persist", 'main');
 
 	// const { test, setEstate, session } = useEstate("main");
-	const { text, setEstate } = useEstate("persist");
+	const { text, setEstate, setEstates } = useEstate("persist");
+	const { setEstate: m } = useEstate("main");
 
 	useEffect(() => {
 		// clearEstate("persist");
