@@ -27,9 +27,7 @@ export const setter = <RootState extends RootStateType>(
 								rootState: RootState
 							) => Promise<
 								PayloadReturnValue<
-									RootState,
-									typeof slice,
-									keyof typeof payload
+									RootState[typeof slice][keyof typeof payload]
 								>
 							> = async (rootState) =>
 								isCallable(cb)
