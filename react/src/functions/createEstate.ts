@@ -1,11 +1,11 @@
 import {
-	createEstate as createEstateCore,
-	generateRandomID,
-	getObjectKeys,
-	GlobalStore,
-	Options,
-	RootStateType,
-	debag,
+  createEstate as createEstateCore,
+  generateRandomID,
+  getObjectKeys,
+  GlobalStore,
+  Options,
+  RootStateType,
+  debag,
 } from "@e-state/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Getter, SetEstates } from "../types";
@@ -18,21 +18,22 @@ import { Getter, SetEstates } from "../types";
  * @returns useEstate, clearEstate
  */
 export const createEstate = <RootState extends RootStateType>(
-	initialRootState: RootState,
-	options?: Options<RootState>
+  initialRootState: RootState,
+  options?: Options<RootState>
 ) => {
-	const { clearEstate, set } = createEstateCore(initialRootState, options);
-	const globalStore = GlobalStore.getInstance<RootState>();
-	const setEstates = getObjectKeys(initialRootState).reduce<
-		SetEstates<RootState>
-	>((pv, slice) => {
-		try {
-			pv[slice] = (payload, forceRenderer) => {
-				set[slice](payload, forceRenderer);
-			};
-		} catch (error) {
-			throw new Error("##@e-state/react:setEstates## :", { cause: error });
-		}
+  const { clearEstate, set } = createEstateCore(initialRootState, options);
+  const globalStore = GlobalStore.getInstance<RootState>();
+  const setEstates = getObjectKeys(initialRootState).reduce<
+    SetEstates<RootState>
+  >((pv, slice) => {
+    try {
+      pv[slice] = (payload, forceRenderer) => {
+        set[slice](payload, forceRenderer);
+        return setEstates;
+      };
+    } catch (error) {
+      throw new Error("##@e-state/react:setEstates## :", { cause: error });
+    }
 
 		return pv;
 	}, {} as SetEstates<RootState>);
