@@ -9,5 +9,5 @@ export const { createEstate, setEstates } = initEstate(
   },
   {
     persist: ["persist"],
-  }
+  },
 );

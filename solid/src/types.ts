@@ -2,7 +2,9 @@ import { Setter } from "solid-js";
 
 export type RootStateType = Record<any, Record<any, any>>;
 type Payload<RootState extends RootStateType, Slice extends keyof RootState> = {
-  [key in keyof RootState[Slice]]?: Parameters<Setter<RootState[Slice][key]>>[0];
+  [key in keyof RootState[Slice]]?: Parameters<
+    Setter<RootState[Slice][key]>
+  >[0];
 };
 export type Options<RootState extends RootStateType> = {
   persist?: (keyof RootState)[];

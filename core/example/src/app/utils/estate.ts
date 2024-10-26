@@ -11,5 +11,5 @@ export const { set, store, clearEstate, subscribe } = createEstate(
   },
   {
     persist: ["persist", "main"],
-  }
+  },
 );

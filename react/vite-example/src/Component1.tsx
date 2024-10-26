@@ -6,6 +6,9 @@ import { setEstates, useEstate } from "./estate";
 
 function App() {
   const { count, count2 } = useEstate("persist");
+  useEffect(() => {
+    console.log("count2", count2());
+  }, [count2]);
   return (
     <>
       <div>

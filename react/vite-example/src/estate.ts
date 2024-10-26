@@ -15,5 +15,5 @@ export const { useEstate, clearEstate, setEstates } = createEstate(
   {
     persist: ["persist"],
     debag: false,
-  }
+  },
 );

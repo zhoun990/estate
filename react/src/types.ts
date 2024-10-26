@@ -4,14 +4,14 @@ export type Getter<T> = () => T;
 export type Setter<T> = (payload: T, forceRenderer?: boolean) => void;
 
 export type SetterFunction<T, RootState> = (
-	currentValue: T,
-	rootState: RootState
+  currentValue: T,
+  rootState: RootState,
 ) => ReturnValue<T>;
 type ReturnValue<T> = Promise<T> | T;
 export type SetEstates<RootState extends RootStateType> = {
-	[slice in keyof RootState]: Setter<{
-		[key in keyof RootState[slice]]?:
-			| RootState[slice][key]
-			| SetterFunction<RootState[slice][key], RootState>;
-	}>;
+  [slice in keyof RootState]: Setter<{
+    [key in keyof RootState[slice]]?:
+      | RootState[slice][key]
+      | SetterFunction<RootState[slice][key], RootState>;
+  }>;
 };

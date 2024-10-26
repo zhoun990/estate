@@ -19,7 +19,7 @@ import { Getter, SetEstates } from "../types";
  */
 export const createEstate = <RootState extends RootStateType>(
   initialRootState: RootState,
-  options?: Options<RootState>
+  options?: Options<RootState>,
 ) => {
   const { clearEstate, set } = createEstateCore(initialRootState, options);
   const globalStore = GlobalStore.getInstance<RootState>();
@@ -35,59 +35,61 @@ export const createEstate = <RootState extends RootStateType>(
       throw new Error("##@e-state/react:setEstates## :", { cause: error });
     }
 
-		return pv;
-	}, {} as SetEstates<RootState>);
-	const useEstate = <Slice extends keyof RootState>(slice: Slice) => {
-		const [_rerender, r] = useState("0");
-		const rerenderId = useRef(generateRandomID(20));
-		const unsubscribes = useRef<Map<string, () => void>>(new Map());
-		useEffect(() => {
-			r(Date.now().toString());
-			return () => {
-				Object.values(unsubscribes.current).forEach((unsubscribe) => {
-					unsubscribe();
-				});
-				unsubscribes.current.clear();
-			};
-		}, []);
+    return pv;
+  }, {} as SetEstates<RootState>);
+  const useEstate = <Slice extends keyof RootState>(slice: Slice) => {
+    const [_rerender, r] = useState("0");
+    const rerenderId = useRef(generateRandomID(20));
+    const unsubscribes = useRef<Map<string, () => void>>(new Map());
+    useEffect(() => {
+      r(Date.now().toString());
+      return () => {
+        Object.values(unsubscribes.current).forEach((unsubscribe) => {
+          unsubscribe();
+        });
+        unsubscribes.current.clear();
+      };
+    }, []);
 
-		return {
-			...Array.from(globalStore.store.get(slice)?.keys() || []).reduce<{
-				[key in keyof RootState[Slice]]: Getter<RootState[Slice][key]>;
-			}>((pv, key) => {
-				const getter = () => {
-					const id = [slice, key, rerenderId.current].join("###");
-					try {
-						if (!unsubscribes.current.has(id)) {
-							debag("getter:subscribe:id:", id);
-							const unsb = globalStore.subscribe(
-								slice,
-								key,
-								rerenderId.current,
-								({ updateId }) => {
-									r(updateId);
-								}
-							);
-							unsubscribes.current.set(id, unsb);
-						}
-					} catch (error) {
-						throw new Error("##@e-state/react:getter:handle_subscribe## :", {
-							cause: {
-								rerenderId: rerenderId.current,
-								slice,
-								key,
-								error,
-							},
-						});
-					}
-					return globalStore.store.get(slice)?.get(key);
-				};
-				pv[key as keyof RootState[Slice]] = useCallback(getter, []);
-				return pv;
-			}, {} as any),
-			setEstate: setEstates[slice],
-			setEstates,
-		};
-	};
-	return { useEstate, clearEstate, setEstates, store: globalStore };
+    return {
+      ...Array.from(globalStore.store.get(slice)?.keys() || []).reduce<{
+        [key in keyof RootState[Slice]]: Getter<RootState[Slice][key]>;
+      }>((pv, key) => {
+        const getter = () => {
+          const id = [slice, key, rerenderId.current].join("###");
+          try {
+            if (!unsubscribes.current.has(id)) {
+              debag("getter:subscribe:id:", id);
+              const unsb = globalStore.subscribe(
+                slice,
+                key,
+                rerenderId.current,
+                ({ updateId }) => {
+                  r(updateId);
+                },
+              );
+              unsubscribes.current.set(id, unsb);
+            }
+          } catch (error) {
+            throw new Error("##@e-state/react:getter:handle_subscribe## :", {
+              cause: {
+                rerenderId: rerenderId.current,
+                slice,
+                key,
+                error,
+              },
+            });
+          }
+          return globalStore.store.get(slice)?.get(key);
+        };
+        pv[key as keyof RootState[Slice]] = useCallback(getter, [
+          globalStore.store.get(slice)?.get(key),
+        ]);
+        return pv;
+      }, {} as any),
+      setEstate: setEstates[slice],
+      setEstates,
+    };
+  };
+  return { useEstate, clearEstate, setEstates, store: globalStore };
 };
