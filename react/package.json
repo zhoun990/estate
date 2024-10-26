@@ -1,35 +1,35 @@
 {
-	"name": "@e-state/react",
-	"version": "0.2.0",
-	"description": "A simple global state management library",
-	"main": "dist/index.js",
-	"types": "dist/index.d.ts",
-	"scripts": {
-		"p": "npm version patch && npm publish --access public",
-		"build": "tsc",
-		"prepare": "npm run build",
-		"test": "echo \"Error: no test specified\" && exit 1"
-	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/zhoun990/estate.git"
-	},
-	"author": "Shu Nagumo",
-	"license": "MIT",
-	"dependencies": {
-		"@e-state/core": "^0.2.41",
-		"react": "^18.2.0"
-	},
-	"devDependencies": {
-		"@types/react": "^18.2.31",
-		"typescript": "^5.2.2",
-		"vite": "^5.0.10"
-	},
-	"keywords": [
-		"react",
-		"state"
-	],
-	"volta": {
-		"node": "20.10.0"
-	}
+  "name": "@e-state/react",
+  "version": "0.2.1",
+  "description": "A simple global state management library",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "p": "npm version patch && npm publish --access public",
+    "build": "tsc --watch",
+    "prepare": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zhoun990/estate.git"
+  },
+  "author": "Shu Nagumo",
+  "license": "MIT",
+  "dependencies": {
+    "@e-state/core": "^0.2.41",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.31",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.10"
+  },
+  "keywords": [
+    "react",
+    "state"
+  ],
+  "volta": {
+    "node": "20.10.0"
+  }
 }

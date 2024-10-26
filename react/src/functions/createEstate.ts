@@ -1,13 +1,13 @@
 import {
-	createEstate as createEstateCore,
-	generateRandomID,
-	getObjectKeys,
-	GlobalStore,
-	Options,
-	RootStateType,
-	debag,
+  createEstate as createEstateCore,
+  generateRandomID,
+  getObjectKeys,
+  GlobalStore,
+  Options,
+  RootStateType,
+  debag,
 } from "@e-state/core";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Getter, SetEstates } from "../types";
 //[ToDO] 複数個所で初期化してsliceを追加可能に
 /**
@@ -18,76 +18,76 @@ import { Getter, SetEstates } from "../types";
  * @returns useEstate, clearEstate
  */
 export const createEstate = <RootState extends RootStateType>(
-	initialRootState: RootState,
-	options?: Options<RootState>
+  initialRootState: RootState,
+  options?: Options<RootState>
 ) => {
-	const { clearEstate, set } = createEstateCore(initialRootState, options);
-	const globalStore = GlobalStore.getInstance<RootState>();
-	const setEstates = getObjectKeys(initialRootState).reduce<
-		SetEstates<RootState>
-	>((pv, slice) => {
-		try {
-			pv[slice] = (payload, forceRenderer) => {
-				set[slice](payload, forceRenderer);
-				return setEstates;
-			};
-		} catch (error) {
-			throw new Error("##@e-state/react:setEstates## :", { cause: error });
-		}
+  const { clearEstate, set } = createEstateCore(initialRootState, options);
+  const globalStore = GlobalStore.getInstance<RootState>();
+  const setEstates = getObjectKeys(initialRootState).reduce<
+    SetEstates<RootState>
+  >((pv, slice) => {
+    try {
+      pv[slice] = (payload, forceRenderer) => {
+        set[slice](payload, forceRenderer);
+        return setEstates;
+      };
+    } catch (error) {
+      throw new Error("##@e-state/react:setEstates## :", { cause: error });
+    }
 
-		return pv;
-	}, {} as SetEstates<RootState>);
-	const useEstate = <Slice extends keyof RootState>(slice: Slice) => {
-		const [_rerender, r] = useState("0");
-		const rerenderId = useRef(generateRandomID(20));
-		const unsubscribes = useRef<Map<string, () => void>>(new Map());
-		useEffect(() => {
-			r(Date.now().toString());
-			return () => {
-				Object.values(unsubscribes.current).forEach((unsubscribe) => {
-					unsubscribe();
-				});
-				unsubscribes.current.clear();
-			};
-		}, []);
-		return {
-			...Object.entries(globalStore.getSlice(slice)).reduce<{
-				[key in keyof RootState[Slice]]: Getter<RootState, Slice, key>;
-			}>((pv, [key, value]) => {
-				const getter = () => {
-					const id = [slice, key, rerenderId.current].join("###");
-					try {
-						if (!unsubscribes.current.has(id)) {
-							debag("getter:subscribe:id:", id);
-							const unsb = globalStore.subscribe(
-								slice,
-								key,
-								rerenderId.current,
-								({ updateId }) => {
-									r(updateId);
-								}
-							);
-							unsubscribes.current.set(id, unsb);
-						}
-					} catch (error) {
-						throw new Error("##@e-state/react:getter:handle_subscribe## :", {
-							cause: {
-								rerenderId: rerenderId.current,
-								slice,
-								key,
-								error,
-							},
-						});
-					}
-					return value;
-				};
-				pv[key as keyof RootState[Slice]] = getter;
-				return pv;
-			}, {} as any),
-			setEstate: setEstates[slice],
-			setEstates,
-		};
-	};
+    return pv;
+  }, {} as SetEstates<RootState>);
+  const useEstate = <Slice extends keyof RootState>(slice: Slice) => {
+    const [_rerender, r] = useState("0");
+    const rerenderId = useRef(generateRandomID(20));
+    const unsubscribes = useRef<Map<string, () => void>>(new Map());
+    useEffect(() => {
+      r(Date.now().toString());
+      return () => {
+        Object.values(unsubscribes.current).forEach((unsubscribe) => {
+          unsubscribe();
+        });
+        unsubscribes.current.clear();
+      };
+    }, []);
+    return {
+      ...Object.entries(globalStore.getSlice(slice)).reduce<{
+        [key in keyof RootState[Slice]]: Getter<RootState, Slice, key>;
+      }>((pv, [key, value]) => {
+        const getter = useCallback(() => {
+          const id = [slice, key, rerenderId.current].join("###");
+          try {
+            if (!unsubscribes.current.has(id)) {
+              debag("getter:subscribe:id:", id);
+              const unsb = globalStore.subscribe(
+                slice,
+                key,
+                rerenderId.current,
+                ({ updateId }) => {
+                  r(updateId);
+                }
+              );
+              unsubscribes.current.set(id, unsb);
+            }
+          } catch (error) {
+            throw new Error("##@e-state/react:getter:handle_subscribe## :", {
+              cause: {
+                rerenderId: rerenderId.current,
+                slice,
+                key,
+                error,
+              },
+            });
+          }
+          return value;
+        }, [value]);
+        pv[key as keyof RootState[Slice]] = getter;
+        return pv;
+      }, {} as any),
+      setEstate: setEstates[slice],
+      setEstates,
+    };
+  };
 
-	return { useEstate, clearEstate, setEstates, store: globalStore };
+  return { useEstate, clearEstate, setEstates, store: globalStore };
 };
