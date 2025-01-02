@@ -1,6 +1,6 @@
 {
   "name": "@e-state/react",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "A simple global state management library",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
