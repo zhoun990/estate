@@ -19,7 +19,7 @@ import { Getter, SetEstates } from "../types";
  */
 export const createEstate = <RootState extends RootStateType>(
   initialRootState: RootState,
-  options?: Options<RootState>,
+  options?: Options<RootState>
 ) => {
   const { clearEstate, set } = createEstateCore(initialRootState, options);
   const globalStore = GlobalStore.getInstance<RootState>();
@@ -44,7 +44,7 @@ export const createEstate = <RootState extends RootStateType>(
     useEffect(() => {
       r(Date.now().toString());
       return () => {
-        Object.values(unsubscribes.current).forEach((unsubscribe) => {
+        Array.from(unsubscribes.current.values()).forEach((unsubscribe) => {
           unsubscribe();
         });
         unsubscribes.current.clear();
@@ -66,7 +66,7 @@ export const createEstate = <RootState extends RootStateType>(
                 rerenderId.current,
                 ({ updateId }) => {
                   r(updateId);
-                },
+                }
               );
               unsubscribes.current.set(id, unsb);
             }

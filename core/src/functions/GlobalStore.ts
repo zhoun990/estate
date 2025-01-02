@@ -40,7 +40,7 @@ export class StoreHandler<Store extends RootStateType> {
   // }
   public getValue<Slice extends keyof Store, Key extends keyof Store[Slice]>(
     slice: Slice,
-    key: Key,
+    key: Key
   ): Store[Slice][Key] {
     return this.store.get(slice)?.get(key);
   }
@@ -52,7 +52,7 @@ export class StoreHandler<Store extends RootStateType> {
   // }
 }
 export class GlobalStore<
-  Store extends RootStateType,
+  Store extends RootStateType
 > extends StoreHandler<Store> {
   private static instance: GlobalStore<any>;
   public initialState: Store = {} as Store;
@@ -64,26 +64,24 @@ export class GlobalStore<
   private listeners: Record<string, ListenerCallback> = {};
   private valueProcessing = false;
   private waitingUpdate: ((
-    store: Store,
+    store: Store
   ) => Promise<
     [
       keyof Store,
       keyof Store[keyof Store],
       Store[keyof Store][keyof Store[keyof Store]],
-      boolean?,
+      boolean?
     ]
   >)[] = [];
   private waitingSetValue: [
     keyof Store,
     keyof Store[keyof Store],
     Store[keyof Store][keyof Store[keyof Store]],
-    boolean?,
+    boolean?
   ][] = [];
   private waitingListen: {
-    listeners: ListenerCallback[];
     forceRerender: boolean;
     oldValue: Store[keyof Store][keyof Store[keyof Store]];
-    newValue: Store[keyof Store][keyof Store[keyof Store]];
     slice: keyof Store;
     key: keyof Store[keyof Store];
   }[] = [];
@@ -97,7 +95,7 @@ export class GlobalStore<
     GlobalStore.instance = this;
   }
   public static getInstance<RootState extends RootStateType>(
-    initialState?: RootState,
+    initialState?: RootState
   ): GlobalStore<RootState> {
     if (!GlobalStore.instance && initialState) {
       GlobalStore.instance = new GlobalStore(initialState);
@@ -107,7 +105,7 @@ export class GlobalStore<
   public setSlice(
     slice: keyof Store,
     newSlice: NotFullSlice<Store, typeof slice>,
-    forceRerender = false,
+    forceRerender = false
   ) {
     getObjectKeys(newSlice).forEach((k) => {
       if (Object.prototype.hasOwnProperty.call(newSlice, k)) {
@@ -120,7 +118,7 @@ export class GlobalStore<
     slice: keyof Store,
     key: keyof Store[typeof slice],
     newValueFn: (rootState: Store) => Promise<Store[typeof slice][typeof key]>,
-    forceRerender = false,
+    forceRerender = false
   ) {
     if (!this.store.has(slice))
       throw new Error("The slice does not exist in the store");
@@ -151,7 +149,7 @@ export class GlobalStore<
   public setMiddleware(
     slice: keyof Store,
     key: keyof Store[typeof slice],
-    fn: Middleware<Store, typeof slice, typeof key>,
+    fn: Middleware<Store, typeof slice, typeof key>
   ) {
     const ms = this.middlewares[slice];
     if (!ms) {
@@ -164,7 +162,7 @@ export class GlobalStore<
   private _middleware(
     slice: keyof Store,
     key: keyof Store[typeof slice],
-    value: Store[keyof Store][keyof Store[keyof Store]],
+    value: Store[keyof Store][keyof Store[keyof Store]]
   ) {
     const fn = this.middlewares[slice]?.[key];
     if (!this.middlewares?.[slice]) return value;
@@ -183,13 +181,13 @@ export class GlobalStore<
     if (this.valueProcessing && !_tempStore) {
       debag(
         "waitingUpdater():called_while_processing:updater_count_is:",
-        this.waitingUpdate.length,
+        this.waitingUpdate.length
       );
       return;
     }
     debag(
       "waitingUpdater():start:updater_count_is:",
-      this.waitingUpdate.length,
+      this.waitingUpdate.length
     );
     this.valueProcessing = true;
 
@@ -198,7 +196,7 @@ export class GlobalStore<
       keyof Store,
       keyof Store[keyof Store],
       Store[keyof Store][keyof Store[keyof Store]],
-      boolean?,
+      boolean?
     ] = [] as any;
     if (promise) {
       try {
@@ -222,7 +220,7 @@ export class GlobalStore<
             debag(
               "waitingUpdater():error_on_set_temp_slice",
               error,
-              this.getSlice(values[0]),
+              this.getSlice(values[0])
             );
           }
         }
@@ -239,10 +237,8 @@ export class GlobalStore<
         const oldValue = this.getValue(slice, key);
         this.store.get(slice)?.set(key, this._middleware(slice, key, value));
         this.waitingListen.push({
-          listeners: this.getListeners(slice, key),
           forceRerender: !!forceRerender,
           oldValue,
-          newValue: this.getValue(slice, key),
           slice,
           key,
         });
@@ -250,13 +246,14 @@ export class GlobalStore<
       debag("waitingUpdater():update_value_end");
       const updateId = String(Date.now());
       for (let i = 0; i < this.waitingListen.length; i++) {
-        const { listeners, forceRerender, oldValue, newValue, slice, key } =
-          this.waitingListen[i];
+        const { forceRerender, oldValue, slice, key } = this.waitingListen[i];
+        const newValue = this.getValue(slice, key);
+        const listeners = this.getListeners(slice, key);
         if (forceRerender || oldValue !== newValue) {
           debag(
             `waitingUpdater():call_listers_start(${i + 1}/${
               this.waitingListen.length
-            })`,
+            })`
           );
           for (let index = 0; index < listeners.length; index++) {
             const callback = listeners[index];
@@ -264,7 +261,6 @@ export class GlobalStore<
               slice,
               key,
               updateId,
-              // oldValue,
             });
           }
         }
@@ -303,7 +299,7 @@ export class GlobalStore<
     slice: keyof Store,
     listenerId: string | undefined,
     callback: ListenerCallback,
-    once = false,
+    once = false
   ) {
     Array.from(this.store.get(slice)?.keys() || []).forEach((key) => {
       this.subscribe(slice, key, listenerId, callback, once);
@@ -314,7 +310,7 @@ export class GlobalStore<
     key: Key,
     listenerId: string | undefined,
     callback: ListenerCallback,
-    once = false,
+    once = false
   ) {
     const path = [slice, key, listenerId || generateRandomID(20)];
     this.setLister(path.join("###"), (args) => {
@@ -343,13 +339,13 @@ export class GlobalStore<
             slice,
             key,
             error,
-          },
+          }
         );
       }
     });
     debag(
       "getListeners():end:create_listeners_array:listeners_count:",
-      listeners.length,
+      listeners.length
     );
     return listeners.map((id) => this.listeners[id]);
   }
