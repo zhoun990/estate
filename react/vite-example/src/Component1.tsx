@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
 import { setEstates, useEstate } from "./estate";
 
 function App() {
-  const { count, count2 } = useEstate("persist");
+  const { count1, count2, setEstate } = useEstate("persist");
   useEffect(() => {
-    console.log("count2", count2());
+    console.log("count1", count1);
+  }, [count1]);
+  useEffect(() => {
+    console.log("count2", count2);
   }, [count2]);
   return (
     <>
@@ -23,10 +26,10 @@ function App() {
       <div className="card">
         <button
           onClick={() => {
-            setEstates.persist({ count: (count) => count + 1 });
+            setEstate({ count1: (count) => count + 1 });
           }}
         >
-          count is {count()}
+          count1 is {count1}
         </button>
         <button
           style={{ marginTop: "10px" }}
@@ -34,15 +37,9 @@ function App() {
             setEstates.persist({ count2: (count2) => count2 + 1 });
           }}
         >
-          count2 is {count2()}
+          count2 is {count2}
         </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
     </>
   );
 }
