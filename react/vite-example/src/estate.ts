@@ -8,12 +8,13 @@ export const { useEstate, clearEstate, setEstates } = createEstate(
       foo: undefined,
     },
     persist: {
-      count: 0,
+      count1: 0,
       count2: 0,
+      count3: 0,
     },
   },
   {
     persist: ["persist"],
     debag: false,
-  },
+  }
 );
