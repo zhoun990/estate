@@ -4,7 +4,7 @@ export type RootStateType = Record<any, Record<any, any>>;
 export type Middleware<
   RootState extends RootStateType,
   Slice extends keyof RootState,
-  Key extends keyof RootState[Slice],
+  Key extends keyof RootState[Slice]
 > =
   | RootState[Slice][Key]
   | ((args: {
@@ -29,7 +29,7 @@ export type Options<RootState extends RootStateType> = {
 };
 export type NotFullSlice<
   RootState extends RootStateType,
-  Slice extends keyof RootState,
+  Slice extends keyof RootState
 > = { [key in keyof RootStateType[Slice]]?: RootStateType[Slice][key] };
 
 export type NotFullRootState<RootState extends RootStateType> = {
@@ -39,34 +39,35 @@ export type PayloadReturnValue<T> = T;
 export type Promiseable<T> = Promise<T> | T;
 export type SetterFunction<T, RootState> = (
   currentValue: T,
-  rootState: RootState,
+  rootState: RootState
 ) => Promiseable<PayloadReturnValue<T>>;
 // | void;
 export type PayloadValue<
   RootState extends RootStateType,
   Slice extends keyof RootState,
-  Key extends keyof RootState[Slice],
+  Key extends keyof RootState[Slice]
 > = RootState[Slice][Key] | SetterFunction<RootState[Slice][Key], RootState>;
 
 export type Payload<
   RootState extends RootStateType,
-  Slice extends keyof RootState,
+  Slice extends keyof RootState
 > = {
   [key in keyof RootState[Slice]]?: PayloadValue<RootState, Slice, key>;
 };
 export type ListenerCallback = <
   Store extends RootStateType,
   Slice extends keyof Store,
-  Key extends keyof Store[Slice],
+  Key extends keyof Store[Slice]
 >(args: {
   slice: Slice;
   key: Key;
   updateId: string;
   // oldValue: Store[Slice][Key];
 }) => void;
+export type ListenerCompare = (oldValue: any, newValue: any) => boolean;
 export type SetEstates<RootState extends RootStateType> = {
   [slice in keyof RootState]: (
     payload: Payload<RootState, slice>,
-    forceRenderer?: boolean,
+    forceRenderer?: boolean
   ) => SetEstates<RootState>;
 };

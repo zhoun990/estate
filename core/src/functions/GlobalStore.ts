@@ -5,6 +5,7 @@ import {
   RootStateType,
   ListenerCallback,
   NotFullRootState,
+  ListenerCompare,
 } from "../types";
 import { debag } from "./debag";
 export const settings = { debag: false };
@@ -61,7 +62,13 @@ export class GlobalStore<
       [key in keyof Store[slice]]?: Middleware<Store, slice, key>;
     };
   } = {};
-  private listeners: Record<string, ListenerCallback> = {};
+  private listeners: Record<
+    string,
+    {
+      callback: ListenerCallback;
+      compare?: ListenerCompare;
+    }
+  > = {};
   private valueProcessing = false;
   private waitingUpdate: ((
     store: Store
@@ -256,12 +263,14 @@ export class GlobalStore<
             })`
           );
           for (let index = 0; index < listeners.length; index++) {
-            const callback = listeners[index];
-            callback({
-              slice,
-              key,
-              updateId,
-            });
+            const { callback, compare } = listeners[index];
+            if (compare?.(oldValue, newValue) ?? true) {
+              callback({
+                slice,
+                key,
+                updateId,
+              });
+            }
           }
         }
       }
@@ -299,26 +308,39 @@ export class GlobalStore<
     slice: keyof Store,
     listenerId: string | undefined,
     callback: ListenerCallback,
+    compare?: ListenerCompare,
     once = false
   ) {
     Array.from(this.store.get(slice)?.keys() || []).forEach((key) => {
-      this.subscribe(slice, key, listenerId, callback, once);
+      this.subscribe({ slice, key, listenerId, callback, compare, once });
     });
   }
-  public subscribe<Slice extends keyof Store, Key extends keyof Store[Slice]>(
-    slice: Slice,
-    key: Key,
-    listenerId: string | undefined,
-    callback: ListenerCallback,
-    once = false
-  ) {
+  public subscribe<Slice extends keyof Store, Key extends keyof Store[Slice]>({
+    slice,
+    key,
+    listenerId,
+    callback,
+    compare,
+    once = false,
+  }: {
+    slice: Slice;
+    key: Key;
+    listenerId: string | undefined;
+    callback: ListenerCallback;
+    compare?: ListenerCompare;
+    once?: boolean;
+  }) {
     const path = [slice, key, listenerId || generateRandomID(20)];
-    this.setLister(path.join("###"), (args) => {
-      if (once) {
-        this.unsubscribe(path.join("###"));
-      }
-      callback(args);
-    });
+    this.setLister(
+      path.join("###"),
+      (args) => {
+        if (once) {
+          this.unsubscribe(path.join("###"));
+        }
+        callback(args);
+      },
+      compare
+    );
     return () => this.unsubscribe(path.join("###"));
   }
   public unsubscribe(id: string) {
@@ -349,7 +371,11 @@ export class GlobalStore<
     );
     return listeners.map((id) => this.listeners[id]);
   }
-  private setLister(id: string, callback: ListenerCallback) {
-    this.listeners[id] = callback;
+  private setLister(
+    id: string,
+    callback: ListenerCallback,
+    compare?: ListenerCompare
+  ) {
+    this.listeners[id] = { callback, ...(compare ? { compare } : {}) };
   }
 }

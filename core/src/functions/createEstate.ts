@@ -1,4 +1,9 @@
-import { ListenerCallback, Options, RootStateType } from "../types";
+import {
+  ListenerCallback,
+  ListenerCompare,
+  Options,
+  RootStateType,
+} from "../types";
 import { GlobalStore, settings } from "./GlobalStore";
 import { setter } from "./createUpdater";
 import { clone, getObjectKeys, replacer, reviver } from "./utils";
@@ -11,7 +16,7 @@ import { clone, getObjectKeys, replacer, reviver } from "./utils";
  */
 export const createEstate = <RootState extends RootStateType>(
   initialRootState: RootState,
-  options?: Options<RootState>,
+  options?: Options<RootState>
 ) => {
   settings.debag = !!options?.debag;
   const globalStore = GlobalStore.getInstance(clone(initialRootState));
@@ -27,7 +32,7 @@ export const createEstate = <RootState extends RootStateType>(
   }
 
   const getStorageItems = async (
-    slice: keyof RootState,
+    slice: keyof RootState
   ): Promise<RootState[keyof RootState]> => {
     const getItem = (k: Extract<keyof RootState[keyof RootState], string>) =>
       options?.storage?.getItem(k);
@@ -46,11 +51,11 @@ export const createEstate = <RootState extends RootStateType>(
   };
   const setStorageItems = <State extends Record<any, any>>(
     slice: keyof RootState,
-    state: State,
+    state: State
   ) => {
     const setItem = (
       k: Extract<keyof RootState[keyof RootState], string>,
-      v: string,
+      v: string
     ) => options?.storage?.setItem(k, v);
 
     if (options?.storage?.setItem) {
@@ -78,7 +83,7 @@ export const createEstate = <RootState extends RootStateType>(
           setStorageItems(slice, {
             [key]: globalStore.getValue(slice, key),
           });
-        },
+        }
       );
     });
   }
@@ -97,14 +102,23 @@ export const createEstate = <RootState extends RootStateType>(
     set: setter(initialRootState),
     subscribe: <
       Slice extends keyof RootState,
-      Key extends keyof RootState[Slice],
+      Key extends keyof RootState[Slice]
     >(
       slice: Slice,
       key: Key,
       listenerId: string | undefined,
       callback: ListenerCallback,
-      once = false,
-    ) => globalStore.subscribe(slice, key, listenerId, callback, once),
+      compare?: ListenerCompare,
+      once = false
+    ) =>
+      globalStore.subscribe({
+        slice,
+        key,
+        listenerId,
+        callback,
+        compare,
+        once,
+      }),
     clearEstate,
   };
 };
