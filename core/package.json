@@ -1,28 +1,28 @@
 {
-	"name": "@e-state/core",
-	"version": "0.2.45",
-	"description": "A simple global state management library",
-	"main": "dist/index.js",
-	"types": "dist/index.d.ts",
-	"scripts": {
-		"p": "npm version patch && npm publish --access public",
-		"build": "tsc",
-		"prepare": "npm run build",
-		"test": "echo \"Error: no test specified\" && exit 1"
-	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/zhoun990/estate.git"
-	},
-	"author": "Shu Nagumo",
-	"license": "MIT",
-	"dependencies": {
-		"rfdc": "^1.3.0"
-	},
-	"devDependencies": {
-		"typescript": "^5.2.2"
-	},
-	"volta": {
-		"node": "20.10.0"
-	}
+  "name": "@e-state/core",
+  "version": "0.2.52",
+  "description": "A simple global state management library",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "p": "tsc && npm version patch && npm publish --access public",
+    "build": "tsc",
+    "build:w": "tsc --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zhoun990/estate.git"
+  },
+  "author": "Shu Nagumo",
+  "license": "MIT",
+  "dependencies": {
+    "rfdc": "^1.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  },
+  "volta": {
+    "node": "22.14.0"
+  }
 }

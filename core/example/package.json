@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@e-state/core": "0.2.13",
+    "@e-state/core": "file:../",
     "next": "14.0.3",
     "react": "^18",
     "react-dom": "^18"
@@ -24,6 +24,6 @@
     "typescript": "^5"
   },
   "volta": {
-    "node": "20.10.0"
+    "node": "22.14.0"
   }
 }

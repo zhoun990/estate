@@ -7,8 +7,14 @@ import {
   RootStateType,
   debag,
 } from "@e-state/core";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Getter, SetEstates } from "../types";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { DependencyList, Getter, SetEstates } from "../types";
 //[TODO] 複数個所で初期化してsliceを追加可能に
 /**
  *
@@ -37,14 +43,55 @@ export const createEstate = <RootState extends RootStateType>(
 
     return pv;
   }, {} as SetEstates<RootState>);
+  /**
+   * This hook rerenders when the return value of selector changes.
+   * The selector function is memoized. It will be updated if the contents of the deps array or the key change.
+   */
+  const useSelectorWithSlice = <
+    Slice extends keyof RootState,
+    Key extends keyof RootState[Slice],
+    T
+  >(
+    slice: Slice,
+    key: Key,
+    selector: (value: RootState[Slice][Key]) => T,
+    deps: DependencyList
+  ) => {
+    const rerenderIdRef = useRef(generateRandomID(20));
+    const rerenderId = useMemo(() => rerenderIdRef.current, []);
+    const [updateId, rerender] = useState<string>(rerenderId);
 
+    useEffect(() => {
+      const unsb = globalStore.subscribe({
+        slice,
+        key,
+        listenerId: rerenderId,
+        callback: ({ updateId }) => {
+          rerender(updateId);
+        },
+        compare: (prev, next) => {
+          const a = selector(prev);
+          const b = selector(next);
+          const isSame = a === b;
+
+          return isSame;
+        },
+      });
+      return () => {
+        unsb();
+      };
+    }, [...deps, key]);
+
+    const value = useMemo(
+      () => selector(globalStore.getValue(slice, key)),
+      [updateId, ...deps, key]
+    );
+
+    return value;
+  };
   /**
    * @example
-   *  const { someState } = useEstate("someSlice");
-   *  useEffect(() => {
-   *    const state = someState();
-   *    //...
-   *  }, [someState()]);
+   *  const { someState, setEstate } = useEstate("someSlice");
    */
   const useEstate = <Slice extends keyof RootState>(slice: Slice) => {
     const rerenderIdRef = useRef(generateRandomID(20));
@@ -58,14 +105,14 @@ export const createEstate = <RootState extends RootStateType>(
       try {
         if (!unsubscribes.current.has(id)) {
           debag("getter:subscribe:id:", id);
-          const unsb = globalStore.subscribe(
+          const unsb = globalStore.subscribe({
             slice,
             key,
-            rerenderId,
-            ({ updateId }) => {
+            listenerId: rerenderId,
+            callback: ({ updateId }) => {
               rerender(updateId);
-            }
-          );
+            },
+          });
           unsubscribes.current.set(id, unsb);
         }
       } catch (error) {
@@ -106,6 +153,14 @@ export const createEstate = <RootState extends RootStateType>(
 
       return object as RootState[Slice];
     }, []);
+    const useSelector = useCallback(
+      <Key extends keyof RootState[Slice], T>(
+        key: Key,
+        selector: (value: RootState[Slice][Key]) => T,
+        deps: DependencyList
+      ) => useSelectorWithSlice(slice, key, selector, deps),
+      [slice]
+    );
     const currentStates = useMemo(() => {
       const object = {};
       Object.defineProperties(
@@ -129,13 +184,26 @@ export const createEstate = <RootState extends RootStateType>(
           writable: false,
           enumerable: false,
         },
+        useSelector: {
+          value: useSelector,
+          writable: false,
+          enumerable: false,
+        },
       });
       return object as RootState[Slice] & {
         setEstate: SetEstates<RootState>[Slice];
         setEstates: SetEstates<RootState>;
+        useSelector: typeof useSelector;
       };
     }, [updateId]);
     return currentStates;
   };
-  return { useEstate, clearEstate, setEstates, store: globalStore };
+
+  return {
+    useEstate,
+    clearEstate,
+    setEstates,
+    store: globalStore,
+    useSelectorWithSlice,
+  };
 };

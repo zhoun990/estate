@@ -66,6 +66,7 @@ export class GlobalStore<
     string,
     {
       callback: ListenerCallback;
+      /** NOTE: returns true if the value is the same */
       compare?: ListenerCompare;
     }
   > = {};
@@ -264,7 +265,8 @@ export class GlobalStore<
           );
           for (let index = 0; index < listeners.length; index++) {
             const { callback, compare } = listeners[index];
-            if (compare?.(oldValue, newValue) ?? true) {
+            // NOTE: if compare is not provided or oldValue and newValue are not the same, the callback will be called
+            if (compare === undefined ? true : !compare(oldValue, newValue)) {
               callback({
                 slice,
                 key,
@@ -330,17 +332,21 @@ export class GlobalStore<
     compare?: ListenerCompare;
     once?: boolean;
   }) {
-    const path = [slice, key, listenerId || generateRandomID(20)];
-    this.setLister(
-      path.join("###"),
-      (args) => {
+    const path = [slice, key, listenerId ?? generateRandomID(20)];
+    this.setLister({
+      id: path.join("###"),
+      callback: (args) => {
         if (once) {
+          debag("subscribe():start:callback:once");
           this.unsubscribe(path.join("###"));
+        } else {
+          debag("subscribe():start:callback");
         }
         callback(args);
+        debag("subscribe():end:callback");
       },
-      compare
-    );
+      compare,
+    });
     return () => this.unsubscribe(path.join("###"));
   }
   public unsubscribe(id: string) {
@@ -371,11 +377,15 @@ export class GlobalStore<
     );
     return listeners.map((id) => this.listeners[id]);
   }
-  private setLister(
-    id: string,
-    callback: ListenerCallback,
-    compare?: ListenerCompare
-  ) {
+  private setLister({
+    id,
+    callback,
+    compare,
+  }: {
+    id: string;
+    callback: ListenerCallback;
+    compare?: ListenerCompare;
+  }) {
     this.listeners[id] = { callback, ...(compare ? { compare } : {}) };
   }
 }

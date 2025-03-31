@@ -8,7 +8,6 @@
   "scripts": {
     "p": "npm version patch && npm publish --access public",
     "build": "tsc",
-    "prepare": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -29,6 +28,6 @@
     "state"
   ],
   "volta": {
-    "node": "20.10.0"
+    "node": "22.14.0"
   }
 }

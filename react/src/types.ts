@@ -5,7 +5,7 @@ export type Setter<T> = (payload: T, forceRenderer?: boolean) => void;
 
 export type SetterFunction<T, RootState> = (
   currentValue: T,
-  rootState: RootState,
+  rootState: RootState
 ) => ReturnValue<T>;
 type ReturnValue<T> = Promise<T> | T;
 export type SetEstates<RootState extends RootStateType> = {
@@ -15,3 +15,4 @@ export type SetEstates<RootState extends RootStateType> = {
       | SetterFunction<RootState[slice][key], RootState>;
   }>;
 };
+export type DependencyList = readonly unknown[];

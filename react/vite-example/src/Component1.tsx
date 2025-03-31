@@ -5,7 +5,7 @@ import "./App.css";
 import { setEstates, useEstate } from "./estate";
 
 function App() {
-  const { count1, count2, setEstate } = useEstate("persist");
+  const { count1, count2, setEstate, useSelector } = useEstate("persist");
   useEffect(() => {
     console.log("count1", count1);
   }, [count1]);
