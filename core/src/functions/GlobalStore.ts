@@ -187,13 +187,25 @@ export class GlobalStore<
     if (!this.middlewares?.[slice]) return value;
     if (!Object.keys(this.middlewares[slice] || {}).includes(String(key)))
       return value;
-    if (isFunction(fn))
-      return fn({
-        value,
-        slice,
-        key,
-        globalStore: this.getStore(),
-      });
+    if (isFunction(fn)) {
+      try {
+        return fn({
+          value,
+          slice,
+          key,
+          globalStore: this.getStore(),
+        });
+      } catch (error) {
+        debugError("Error in middleware:", error, {
+          slice,
+          key,
+          value,
+          middlewareFunction: fn.toString(),
+        });
+        // エラーが発生した場合は元の値を返す
+        return value;
+      }
+    }
     return fn;
   }
   private async updater(virtualStore?: NotFullRootState<Store>) {

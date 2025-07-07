@@ -97,7 +97,7 @@ export const createEstate = <RootState extends RootStateType>(
   };
 
   if (options?.persist?.length) {
-    options?.persist.forEach((slice) => {
+    options.persist.forEach((slice) => {
       // persistデータの読み込み
       getStorageItems(slice)
         .then((state) => {
