@@ -53,6 +53,7 @@ export const createEstate = <RootState extends RootStateType>(
   >(
     slice: Slice,
     key: Key,
+    /** セレクタ関数、または[セレクタ, 比較関数]のペア。比較関数がtrueを返すと同じ値と判断しレンダリングをスキップ、falseで異なる値と判断しレンダリングする。 */
     selectorOrCompare: SelectorOrCompare<RootState[Slice][Key], T>,
     deps: DependencyList
   ) => {
@@ -164,9 +165,9 @@ export const createEstate = <RootState extends RootStateType>(
     const useSelector = useCallback(
       <Key extends keyof RootState[Slice], T>(
         key: Key,
-        selector: (value: RootState[Slice][Key]) => T,
+        selectorOrCompare: SelectorOrCompare<RootState[Slice][Key], T>,
         deps: DependencyList
-      ) => useSelectorWithSlice(slice, key, selector, deps),
+      ) => useSelectorWithSlice(slice, key, selectorOrCompare, deps),
       [slice]
     );
     const currentStates = useMemo(() => {

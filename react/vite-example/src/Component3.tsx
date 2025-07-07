@@ -8,9 +8,18 @@ function App() {
   const { setEstate, useSelector } = useEstate("persist");
   const objA = useSelector(
     "obj",
-    (obj) => {
-      return obj.a;
-    },
+    [
+      (obj) => {
+        return obj.get("a");
+      },
+      (a, b) => {
+        const aa = a.get("a");
+        const ab = b.get("a");
+        console.log("🚀 ~ a, b:", aa, ab, aa === ab);
+
+        return aa === ab;
+      },
+    ],
     []
   );
 
@@ -29,15 +38,28 @@ function App() {
 
         <button
           onClick={() => {
-            setEstate({ obj: (obj) => ({ ...obj, a: obj.a + 1 }) });
+            setEstate({
+              obj: (obj) => {
+                obj.set("a", {
+                  ...obj.get("a")!,
+                  a: obj.get("a")!.a + 1,
+                });
+                return obj;
+              },
+            });
           }}
         >
-          obj.a is {objA}
+          obj.a is {objA?.a}
         </button>
 
-        <button
+        {/* <button
           onClick={() => {
-            setEstate({ obj: (obj) => ({ ...obj, b: obj.b + 1 }) });
+            setEstate({
+              obj: (obj) => ({
+                ...obj,
+                a: { ...obj.get("a"), b: obj.get("a")!.b + 1 },
+              }),
+            });
           }}
         >
           obj.b
@@ -45,11 +67,16 @@ function App() {
 
         <button
           onClick={() => {
-            setEstate({ obj: (obj) => ({ ...obj, c: obj.c + 1 }) });
+            setEstate({
+              obj: (obj) => ({
+                ...obj,
+                a: { ...obj.get("a"), c: obj.get("a")!.c + 1 },
+              }),
+            });
           }}
         >
           obj.c
-        </button>
+        </button> */}
 
         <p>
           Edit <code>src/App.tsx</code> and save to test HMR

@@ -1,6 +1,6 @@
 {
   "name": "@e-state/core",
-  "version": "0.2.54",
+  "version": "0.2.56",
   "description": "A simple global state management library",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

@@ -11,11 +11,32 @@ export const { useEstate, clearEstate, setEstates } = createEstate(
       count1: 0,
       count2: 0,
       count3: 0,
-      obj: {
-        a: 1,
-        b: 2,
-        c: 3,
-      },
+      obj: new Map([
+        [
+          "a",
+          {
+            a: 1,
+            b: 2,
+            c: 3,
+          },
+        ],
+        [
+          "b",
+          {
+            a: 1,
+            b: 2,
+            c: 3,
+          },
+        ],
+        [
+          "c",
+          {
+            a: 1,
+            b: 2,
+            c: 3,
+          },
+        ],
+      ]),
     },
   },
   {

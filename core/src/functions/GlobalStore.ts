@@ -45,12 +45,12 @@ export class StoreHandler<Store extends RootStateType> {
   ): Store[Slice][Key] {
     return this.store.get(slice)?.get(key);
   }
-  // public getClonedValue<
-  // 	Slice extends keyof Store,
-  // 	Key extends keyof Store[Slice]
-  // >(slice: Slice, key: Key) {
-  // 	return clone(this.store[slice]?.[key]);
-  // }
+  public getClonedValue<
+  	Slice extends keyof Store,
+  	Key extends keyof Store[Slice]
+  >(slice: Slice, key: Key) {
+  	return clone(this.getValue(slice, key));
+  }
 }
 export class GlobalStore<
   Store extends RootStateType
@@ -71,7 +71,7 @@ export class GlobalStore<
     }
   > = {};
   private valueProcessing = false;
-  private waitingUpdate: ((
+  private applyUpdateBuffer: ((
     store: Store
   ) => Promise<
     [
@@ -133,13 +133,13 @@ export class GlobalStore<
     if (!this.store.get(slice)?.has(key))
       throw new Error("The key does not exist in the slice");
     debag("setValue():start");
-    this.waitingUpdate.push(async (store: Store) => [
+    this.applyUpdateBuffer.push(async (store: Store) => [
       slice,
       key,
       await newValueFn(store),
       forceRerender,
     ]);
-    this.waitingUpdater();
+    this.updater();
     debag("setValue():end");
   }
   public setMiddlewares(middlewares: Middlewares<Store>) {
@@ -185,45 +185,46 @@ export class GlobalStore<
       });
     return fn;
   }
-  private async waitingUpdater(_tempStore?: NotFullRootState<Store>) {
-    if (this.valueProcessing && !_tempStore) {
+  private async updater(virtualStore?: NotFullRootState<Store>) {
+    if (this.valueProcessing && !virtualStore) {
       debag(
         "waitingUpdater():called_while_processing:updater_count_is:",
-        this.waitingUpdate.length
+        this.applyUpdateBuffer.length
       );
       return;
     }
     debag(
       "waitingUpdater():start:updater_count_is:",
-      this.waitingUpdate.length
+      this.applyUpdateBuffer.length
     );
     this.valueProcessing = true;
 
-    const promise = this.waitingUpdate?.shift();
+    const getUpdatedValue = this.applyUpdateBuffer?.shift();
     let values: [
       keyof Store,
       keyof Store[keyof Store],
       Store[keyof Store][keyof Store[keyof Store]],
       boolean?
     ] = [] as any;
-    if (promise) {
+    if (getUpdatedValue) {
       try {
-        values = await promise({ ...this.getStore(), ..._tempStore });
+        values = await getUpdatedValue({ ...this.getStore(), ...virtualStore });
         debag("waitingUpdater():resolved_promise_value_is:\n", values);
         this.waitingSetValue.push(values);
       } catch (error) {
         debag("waitingUpdater():promise_resolving_error", error);
       }
     }
-    if (this.waitingUpdate.length) {
+    // まだbufferに値がある場合は、次の更新を行う
+    if (this.applyUpdateBuffer.length) {
       debag("waitingUpdater():call_next_waitingUpdater");
-      if (!_tempStore) {
-        _tempStore = {};
+      if (!virtualStore) {
+        virtualStore = {};
       }
       if (values.length) {
-        if (!_tempStore[values[0]]) {
+        if (!virtualStore[values[0]]) {
           try {
-            _tempStore[values[0]] = clone(this.getStore()[values[0]]);
+            virtualStore[values[0]] = clone(this.getStore()[values[0]]);
           } catch (error) {
             debag(
               "waitingUpdater():error_on_set_temp_slice",
@@ -232,17 +233,20 @@ export class GlobalStore<
             );
           }
         }
-        _tempStore[values[0]]![values[1]] = values[2];
+        // INFO: 適用済みの仮想ストアに更新値を追加する
+        virtualStore[values[0]]![values[1]] = values[2];
         debag("waitingUpdater():added_updated_value_to_temp_store");
       }
-      this.waitingUpdater(_tempStore);
+      // INFO: virtualStoreを渡して、次の更新を行う
+      this.updater(virtualStore);
       debag("waitingUpdater():end_with:called_next_waitingUpdater");
     } else {
       debag("waitingUpdater():no_updater_in_queue:update_stacked_values");
       for (let i = 0; i < this.waitingSetValue.length; i++) {
         debag("waitingUpdater():update_value_start");
         const [slice, key, value, forceRerender] = this.waitingSetValue[i];
-        const oldValue = this.getValue(slice, key);
+        // INFO: 参照だと比較ができないので、ディープコピーを行う
+        const oldValue = this.getClonedValue(slice, key);
         this.store.get(slice)?.set(key, this._middleware(slice, key, value));
         this.waitingListen.push({
           forceRerender: !!forceRerender,

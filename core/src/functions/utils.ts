@@ -1,10 +1,5 @@
-import rfdc from "rfdc";
-import { RootStateType, Options, ListenerCallback } from "../types";
-import { setter } from "./createUpdater";
-import { settings, GlobalStore } from "./GlobalStore";
-
 export const getObjectKeys = <T extends Record<any, any>>(
-  obj: T,
+  obj: T
 ): Array<keyof T> => (obj ? Object.keys(obj) : []);
 export const isCallable = (fn: any): fn is Function => {
   return typeof fn === "function";
@@ -13,7 +8,7 @@ export const isFunction = (f: unknown): f is Function =>
   typeof f === "function";
 export const isKey = <T extends Object>(
   target: T,
-  prop: any,
+  prop: any
 ): prop is keyof T => prop in target;
 export const isPromise = (obj: any): obj is Promise<unknown> => {
   return obj instanceof Promise;
@@ -30,10 +25,70 @@ export function generateRandomID(length: number) {
 
   return randomID;
 }
-export const clone: <T = any>(
+
+export function clone<T = any>(
   value: T,
-  options?: StructuredSerializeOptions | undefined,
-) => T = typeof structuredClone !== "undefined" ? structuredClone : rfdc();
+  /** `seen` is a map to check for circular references. It is used internally, there is no need to pass it from the outside. */
+  seen = new WeakMap()
+): T {
+  // null or primitive values
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+
+  // 循環参照をチェック
+  if (seen.has(value as any)) {
+    return seen.get(value as any);
+  }
+
+  let cloned: any;
+
+  // Handle Map
+  if (value instanceof Map) {
+    cloned = new Map();
+    seen.set(value as any, cloned);
+    for (const [key, val] of value.entries()) {
+      cloned.set(clone(key, seen), clone(val, seen));
+    }
+    return cloned as T;
+  }
+
+  // Handle Set
+  if (value instanceof Set) {
+    cloned = new Set();
+    seen.set(value as any, cloned);
+    for (const val of value.values()) {
+      cloned.add(clone(val, seen));
+    }
+    return cloned as T;
+  }
+
+  // Handle Date
+  if (value instanceof Date) {
+    return new Date(value) as T;
+  }
+
+  // Handle Array
+  if (Array.isArray(value)) {
+    cloned = [];
+    seen.set(value as any, cloned);
+    for (let i = 0; i < value.length; i++) {
+      cloned[i] = clone(value[i], seen);
+    }
+    return cloned as T;
+  }
+
+  // Handle regular objects
+  cloned = {};
+  seen.set(value as any, cloned);
+  for (const key in value) {
+    if (value.hasOwnProperty(key)) {
+      cloned[key] = clone((value as any)[key], seen);
+    }
+  }
+  return cloned;
+}
+
 // for JSON#stringify
 export function replacer(key: string, value: any) {
   if (value instanceof Map) {
