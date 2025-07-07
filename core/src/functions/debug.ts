@@ -7,6 +7,12 @@ export const settings: { debug: DebugConfig } = {
   },
 };
 
+// テスト用のリセット関数
+export const resetDebugSettings = () => {
+  settings.debug.enabled = false;
+  settings.debug.level = "INFO";
+};
+
 let lastLogTimestamp = 0;
 
 // ログレベルの優先度
