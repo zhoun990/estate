@@ -75,8 +75,23 @@ jobs:
         run: |
           cd core
           npm run build
-          npm version patch
-          npm publish --access public
+          # 現在のバージョンを取得
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "現在のバージョン: $CURRENT_VERSION"
+          
+          # NPMレジストリで最新バージョンを確認
+          LATEST_VERSION=$(npm view @e-state/core version || echo "0.0.0")
+          echo "NPM上の最新バージョン: $LATEST_VERSION"
+          
+          # バージョンが異なる場合のみパブリッシュ
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "新しいバージョンをパブリッシュします: $CURRENT_VERSION"
+            npm publish --access public
+          else
+            echo "バージョンが同じなので、パッチバージョンを更新してパブリッシュします"
+            npm version patch
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           
@@ -146,8 +161,23 @@ jobs:
         run: |
           cd react
           npm run build
-          npm version patch
-          npm publish --access public
+          # 現在のバージョンを取得
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "現在のバージョン: $CURRENT_VERSION"
+          
+          # NPMレジストリで最新バージョンを確認
+          LATEST_VERSION=$(npm view @e-state/react version || echo "0.0.0")
+          echo "NPM上の最新バージョン: $LATEST_VERSION"
+          
+          # バージョンが異なる場合のみパブリッシュ
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "新しいバージョンをパブリッシュします: $CURRENT_VERSION"
+            npm publish --access public
+          else
+            echo "バージョンが同じなので、パッチバージョンを更新してパブリッシュします"
+            npm version patch
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           
@@ -198,8 +228,23 @@ jobs:
         run: |
           cd solid
           npm run build
-          npm version patch
-          npm publish --access public
+          # 現在のバージョンを取得
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "現在のバージョン: $CURRENT_VERSION"
+          
+          # NPMレジストリで最新バージョンを確認
+          LATEST_VERSION=$(npm view @e-state/solid version || echo "0.0.0")
+          echo "NPM上の最新バージョン: $LATEST_VERSION"
+          
+          # バージョンが異なる場合のみパブリッシュ
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "新しいバージョンをパブリッシュします: $CURRENT_VERSION"
+            npm publish --access public
+          else
+            echo "バージョンが同じなので、パッチバージョンを更新してパブリッシュします"
+            npm version patch
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           
