@@ -252,7 +252,6 @@ export class GlobalStore<
         });
       }
       debag("waitingUpdater():update_value_end");
-      const updateId = String(Date.now());
       for (let i = 0; i < this.waitingListen.length; i++) {
         const { forceRerender, oldValue, slice, key } = this.waitingListen[i];
         const newValue = this.getValue(slice, key);
@@ -264,6 +263,8 @@ export class GlobalStore<
             })`
           );
           for (let index = 0; index < listeners.length; index++) {
+            const updateId = Date.now().toString() + i;
+
             const { callback, compare } = listeners[index];
             // NOTE: if compare is not provided or oldValue and newValue are not the same, the callback will be called
             if (compare === undefined ? true : !compare(oldValue, newValue)) {

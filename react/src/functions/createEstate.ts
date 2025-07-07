@@ -7,14 +7,13 @@ import {
   RootStateType,
   debag,
 } from "@e-state/core";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { DependencyList, Getter, SetEstates } from "../types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DependencyList, SetEstates } from "../types";
+
+type Selector<T, K> = (value: T) => K;
+type Compare<T, K> = (prev: T, next: T) => boolean;
+type SelectorOrCompare<T, K> = Selector<T, K> | [Selector<T, K>, Compare<T, K>];
+
 //[TODO] 複数個所で初期化してsliceを追加可能に
 /**
  *
@@ -54,28 +53,37 @@ export const createEstate = <RootState extends RootStateType>(
   >(
     slice: Slice,
     key: Key,
-    selector: (value: RootState[Slice][Key]) => T,
+    selectorOrCompare: SelectorOrCompare<RootState[Slice][Key], T>,
     deps: DependencyList
   ) => {
     const rerenderIdRef = useRef(generateRandomID(20));
     const rerenderId = useMemo(() => rerenderIdRef.current, []);
     const [updateId, rerender] = useState<string>(rerenderId);
 
+    const [selector, compare] = Array.isArray(selectorOrCompare)
+      ? selectorOrCompare
+      : [
+          selectorOrCompare,
+          (prev: RootState[Slice][Key], next: RootState[Slice][Key]) => {
+            const selector = selectorOrCompare;
+
+            const a = selector(prev);
+            const b = selector(next);
+            const isSame = a === b;
+
+            return isSame;
+          },
+        ];
+
     useEffect(() => {
       const unsb = globalStore.subscribe({
         slice,
         key,
         listenerId: rerenderId,
-        callback: ({ updateId }) => {
-          rerender(updateId);
+        callback: ({ updateId: id }) => {
+          rerender(id);
         },
-        compare: (prev, next) => {
-          const a = selector(prev);
-          const b = selector(next);
-          const isSame = a === b;
-
-          return isSame;
-        },
+        compare,
       });
       return () => {
         unsb();
