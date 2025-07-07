@@ -4,9 +4,9 @@ import {
   Options,
   RootStateType,
 } from "../types";
-import { GlobalStore, settings } from "./GlobalStore";
+import { GlobalStore } from "./GlobalStore";
 import { setter } from "./createUpdater";
-import { debug } from "./debug";
+import { debugError, settings } from "./debug";
 import { clone, getObjectKeys, replacer, reviver } from "./utils";
 /**
  *
@@ -19,7 +19,15 @@ export const createEstate = <RootState extends RootStateType>(
   initialRootState: RootState,
   options?: Options<RootState>
 ) => {
-  settings.debag = !!options?.debag;
+  // デバッグ設定の初期化
+  if (options?.debug) {
+    if (typeof options.debug === 'boolean') {
+      settings.debug.enabled = options.debug;
+    } else {
+      settings.debug.enabled = options.debug.enabled;
+      settings.debug.level = options.debug.level;
+    }
+  }
   const globalStore = GlobalStore.getInstance(clone(initialRootState));
   if (
     typeof window !== "undefined" &&
@@ -52,7 +60,7 @@ export const createEstate = <RootState extends RootStateType>(
               hasPersistedData = true;
             }
           } catch (error) {
-            debug(
+            debugError(
               "getStorageItems():JSON.parse_error",
               error,
               key,
@@ -100,7 +108,7 @@ export const createEstate = <RootState extends RootStateType>(
             }
           })
           .catch((error) => {
-            debug("getStorageItems():promise_resolving_error", error);
+            debugError("getStorageItems():promise_resolving_error", error);
           })
           .finally(() => {
             // 復元完了後にリスナーを設定。エラーが発生した場合もリスナーを設定

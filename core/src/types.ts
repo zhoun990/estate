@@ -18,6 +18,12 @@ export type Middlewares<RootState extends RootStateType> = {
     [key in keyof RootState[slice]]?: Middleware<RootState, slice, key>;
   };
 };
+export type DebugLevel = 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE';
+export type DebugConfig = {
+  enabled: boolean;
+  level: DebugLevel;
+};
+
 export type Options<RootState extends RootStateType> = {
   persist?: (keyof RootState)[];
   storage?: {
@@ -25,7 +31,7 @@ export type Options<RootState extends RootStateType> = {
     setItem(key: any, value: any): Promise<void> | void;
   };
   middlewares?: Middlewares<RootState>;
-  debag?: boolean;
+  debug?: boolean | DebugConfig;
 };
 export type NotFullSlice<
   RootState extends RootStateType,

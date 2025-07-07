@@ -1,4 +1,4 @@
-import { GlobalStore, StoreHandler } from "./GlobalStore";
+import { GlobalStore } from "./GlobalStore";
 import { PayloadReturnValue, PayloadValue, RootStateType } from "../types";
 import { getObjectKeys, isCallable } from "./utils";
 import { Payload } from "../types";

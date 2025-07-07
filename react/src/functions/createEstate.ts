@@ -5,7 +5,7 @@ import {
   GlobalStore,
   Options,
   RootStateType,
-  debug,
+  debugTrace,
 } from "@e-state/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DependencyList, SetEstates } from "../types";
@@ -113,7 +113,7 @@ export const createEstate = <RootState extends RootStateType>(
       const id = [slice, key, rerenderId].join("###");
       try {
         if (!unsubscribes.current.has(id)) {
-          debug("getter:subscribe:id:", id);
+          debugTrace("getter:subscribe:id:", id);
           const unsb = globalStore.subscribe({
             slice,
             key,

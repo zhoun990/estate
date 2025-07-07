@@ -41,6 +41,9 @@ export const { useEstate, clearEstate, setEstates } = createEstate(
   },
   {
     persist: ["persist"],
-    debag: false,
+    debug: {
+      enabled: true,
+      level: "TRACE",
+    },
   }
 );

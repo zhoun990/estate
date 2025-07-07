@@ -188,12 +188,12 @@ describe('createEstate', () => {
       };
       
       createEstate(initialState, {
-        debag: true
+        debug: true
       });
       
       // Debug mode should be enabled in settings
-      const { settings } = require('../functions/GlobalStore');
-      expect(settings.debag).toBe(true);
+      const { settings } = require('../functions/debug');
+      expect(settings.debug.enabled).toBe(true);
     });
 
     it('should disable debug mode when debag option is false', () => {
@@ -202,11 +202,11 @@ describe('createEstate', () => {
       };
       
       createEstate(initialState, {
-        debag: false
+        debug: false
       });
       
-      const { settings } = require('../functions/GlobalStore');
-      expect(settings.debag).toBe(false);
+      const { settings } = require('../functions/debug');
+      expect(settings.debug.enabled).toBe(false);
     });
   });
 
