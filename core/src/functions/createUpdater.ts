@@ -3,12 +3,12 @@ import { PayloadReturnValue, PayloadValue, RootStateType } from "../types";
 import { getObjectKeys, isCallable } from "./utils";
 import { Payload } from "../types";
 export const setter = <RootState extends RootStateType>(
-  initialRootState: RootState,
+  initialRootState: RootState
 ) =>
   getObjectKeys(initialRootState).reduce<{
     [slice in keyof RootState]: (
       payload: Payload<RootState, slice>,
-      forceRenderer?: boolean,
+      forceRenderer?: boolean
     ) => void;
   }>(
     (acc, slice) => {
@@ -22,17 +22,14 @@ export const setter = <RootState extends RootStateType>(
                 typeof slice,
                 keyof typeof payload
               > = payload[key]!;
-              // if (isCallable(cb)) {
               const setter: (
-                rootState: RootState,
+                latestValue: RootState[typeof slice][keyof typeof payload]
               ) => Promise<
                 PayloadReturnValue<
                   RootState[typeof slice][keyof typeof payload]
                 >
-              > = async (rootState) =>
-                isCallable(cb)
-                  ? await cb(rootState[slice][key], rootState)
-                  : cb;
+              > = async (latestValue) =>
+                isCallable(cb) ? await cb(latestValue) : cb;
 
               try {
                 try {
@@ -55,9 +52,6 @@ export const setter = <RootState extends RootStateType>(
                   },
                 });
               }
-              // } else {
-              //   globalStore.setValue(slice, key, cb, forceRenderer);
-              // }
             } catch (error) {
               throw new Error("##@e-state/core:setter## :", {
                 cause: { slice, key, error },
@@ -79,7 +73,7 @@ export const setter = <RootState extends RootStateType>(
     {} as {
       [slice in keyof RootState]: (
         payload: Payload<RootState, slice>,
-        forceRenderer?: boolean,
+        forceRenderer?: boolean
       ) => void;
-    },
+    }
   );

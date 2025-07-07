@@ -46,10 +46,10 @@ export class StoreHandler<Store extends RootStateType> {
     return this.store.get(slice)?.get(key);
   }
   public getClonedValue<
-  	Slice extends keyof Store,
-  	Key extends keyof Store[Slice]
+    Slice extends keyof Store,
+    Key extends keyof Store[Slice]
   >(slice: Slice, key: Key) {
-  	return clone(this.getValue(slice, key));
+    return clone(this.getValue(slice, key));
   }
 }
 export class GlobalStore<
@@ -70,29 +70,37 @@ export class GlobalStore<
       compare?: ListenerCompare;
     }
   > = {};
-  private valueProcessing = false;
-  private applyUpdateBuffer: ((
-    store: Store
-  ) => Promise<
-    [
-      keyof Store,
-      keyof Store[keyof Store],
-      Store[keyof Store][keyof Store[keyof Store]],
-      boolean?
-    ]
-  >)[] = [];
-  private waitingSetValue: [
-    keyof Store,
-    keyof Store[keyof Store],
-    Store[keyof Store][keyof Store[keyof Store]],
-    boolean?
-  ][] = [];
-  private waitingListen: {
-    forceRerender: boolean;
-    oldValue: Store[keyof Store][keyof Store[keyof Store]];
+  private isUpdateInProgress = false;
+  private applyUpdateBuffer: {
     slice: keyof Store;
     key: keyof Store[keyof Store];
+    updater: (
+      latestValue: Store[keyof Store][keyof Store[keyof Store]]
+    ) => Promise<
+      [
+        keyof Store,
+        keyof Store[keyof Store],
+        Store[keyof Store][keyof Store[keyof Store]],
+        boolean?
+      ]
+    >;
   }[] = [];
+  private updateQueue: {
+    slice: keyof Store;
+    key: keyof Store[keyof Store];
+    value: Store[keyof Store][keyof Store[keyof Store]];
+    forceRerender: boolean;
+  }[] = [];
+
+  private listenerQueue: Record<
+    string,
+    {
+      forceRerender: boolean;
+      value: Store[keyof Store][keyof Store[keyof Store]];
+      slice: keyof Store;
+      key: keyof Store[keyof Store];
+    }
+  > = {};
 
   private constructor(initialState: Store) {
     if (GlobalStore.instance) {
@@ -125,7 +133,9 @@ export class GlobalStore<
   public setValue(
     slice: keyof Store,
     key: keyof Store[typeof slice],
-    newValueFn: (rootState: Store) => Promise<Store[typeof slice][typeof key]>,
+    newValueFn: (
+      latestValue: Store[typeof slice][typeof key]
+    ) => Promise<Store[typeof slice][typeof key]>,
     forceRerender = false
   ) {
     if (!this.store.has(slice))
@@ -133,12 +143,16 @@ export class GlobalStore<
     if (!this.store.get(slice)?.has(key))
       throw new Error("The key does not exist in the slice");
     debag("setValue():start");
-    this.applyUpdateBuffer.push(async (store: Store) => [
+    this.applyUpdateBuffer.push({
       slice,
       key,
-      await newValueFn(store),
-      forceRerender,
-    ]);
+      updater: async (latestValue) => [
+        slice,
+        key,
+        await newValueFn(latestValue),
+        forceRerender,
+      ],
+    });
     this.updater();
     debag("setValue():end");
   }
@@ -186,7 +200,7 @@ export class GlobalStore<
     return fn;
   }
   private async updater(virtualStore?: NotFullRootState<Store>) {
-    if (this.valueProcessing && !virtualStore) {
+    if (this.isUpdateInProgress && !virtualStore) {
       debag(
         "waitingUpdater():called_while_processing:updater_count_is:",
         this.applyUpdateBuffer.length
@@ -197,7 +211,7 @@ export class GlobalStore<
       "waitingUpdater():start:updater_count_is:",
       this.applyUpdateBuffer.length
     );
-    this.valueProcessing = true;
+    this.isUpdateInProgress = true;
 
     const getUpdatedValue = this.applyUpdateBuffer?.shift();
     let values: [
@@ -207,15 +221,23 @@ export class GlobalStore<
       boolean?
     ] = [] as any;
     if (getUpdatedValue) {
+      const { slice, key, updater } = getUpdatedValue;
       try {
-        values = await getUpdatedValue({ ...this.getStore(), ...virtualStore });
+        const cloned = this.getClonedValue(slice, key);
+        values = await updater(cloned);
         debag("waitingUpdater():resolved_promise_value_is:\n", values);
-        this.waitingSetValue.push(values);
+        this.updateQueue.push({
+          slice,
+          key,
+          value: values[2],
+          forceRerender: !!values[3],
+        });
       } catch (error) {
         debag("waitingUpdater():promise_resolving_error", error);
       }
     }
-    // まだbufferに値がある場合は、次の更新を行う
+
+    // INFO: bufferに値が残っている場合は、virtualStoreに値を追加して次の更新を行う
     if (this.applyUpdateBuffer.length) {
       debag("waitingUpdater():call_next_waitingUpdater");
       if (!virtualStore) {
@@ -240,53 +262,87 @@ export class GlobalStore<
       // INFO: virtualStoreを渡して、次の更新を行う
       this.updater(virtualStore);
       debag("waitingUpdater():end_with:called_next_waitingUpdater");
-    } else {
-      debag("waitingUpdater():no_updater_in_queue:update_stacked_values");
-      for (let i = 0; i < this.waitingSetValue.length; i++) {
-        debag("waitingUpdater():update_value_start");
-        const [slice, key, value, forceRerender] = this.waitingSetValue[i];
-        // INFO: 参照だと比較ができないので、ディープコピーを行う
-        const oldValue = this.getClonedValue(slice, key);
-        this.store.get(slice)?.set(key, this._middleware(slice, key, value));
-        this.waitingListen.push({
-          forceRerender: !!forceRerender,
-          oldValue,
-          slice,
-          key,
-        });
-      }
-      debag("waitingUpdater():update_value_end");
-      for (let i = 0; i < this.waitingListen.length; i++) {
-        const { forceRerender, oldValue, slice, key } = this.waitingListen[i];
-        const newValue = this.getValue(slice, key);
-        const listeners = this.getListeners(slice, key);
-        if (forceRerender || oldValue !== newValue) {
-          debag(
-            `waitingUpdater():call_listers_start(${i + 1}/${
-              this.waitingListen.length
-            })`
-          );
-          for (let index = 0; index < listeners.length; index++) {
-            const updateId = Date.now().toString() + i;
 
-            const { callback, compare } = listeners[index];
-            // NOTE: if compare is not provided or oldValue and newValue are not the same, the callback will be called
-            if (compare === undefined ? true : !compare(oldValue, newValue)) {
-              callback({
-                slice,
-                key,
-                updateId,
-              });
-            }
+      // INFO: 再帰呼び出ししているので、この呼び出しでは処理を終了する
+      return;
+    }
+
+    // INFO: 更新キューに値がない場合は、更新を行う
+    debag("waitingUpdater():no_updater_in_queue:update_stacked_values");
+    for (let i = 0; i < this.updateQueue.length; i++) {
+      debag("waitingUpdater():update_value_start");
+      const {
+        slice,
+        key,
+        value: newValue,
+        forceRerender,
+      } = this.updateQueue[i];
+      const listenerKey = `${slice.toString()}###${key.toString()}`;
+
+      // INFO: 更新された値をリスナーに通知する。重複している場合は上書きする
+      this.listenerQueue[listenerKey] = {
+        forceRerender: !!forceRerender,
+        value: newValue,
+        slice,
+        key,
+      };
+    }
+    debag("waitingUpdater():update_value_end");
+
+    // INFO: リスナーに通知する
+    for (const listenerKey in this.listenerQueue) {
+      const {
+        forceRerender,
+        slice,
+        key,
+        value: newValue,
+      } = this.listenerQueue[listenerKey];
+      // INFO: 現在のstoreの値は更新前の値なので、storeの値を取得する
+      const oldValue = this.getValue(slice, key);
+
+      // INFO: 登録されているリスナーを取得する
+      const listeners = this.getListeners(slice, key);
+
+      if (forceRerender || oldValue !== newValue) {
+        debag(`waitingUpdater():call_listers_start(${listenerKey})`);
+        for (let index = 0; index < listeners.length; index++) {
+          const updateId = generateRandomID(20);
+          const { callback, compare } = listeners[index];
+
+          // INFO: 比較関数が提供されていない場合は、常にtrueを返す。比較関数が提供されている場合は、比較関数を呼び出して、値が変更されている場合(false)のみ、リスナーを呼び出す
+          if (compare === undefined ? true : !compare(oldValue, newValue)) {
+            callback({
+              slice,
+              key,
+              updateId,
+            });
           }
         }
       }
-      debag("waitingUpdater():call_listers_end");
-      this.waitingSetValue = [];
-      this.waitingListen = [];
-      this.valueProcessing = false;
-      debag("waitingUpdater():end_with:updated_all_changed_values");
     }
+
+    // INFO: storeに反映する
+    for (let i = 0; i < this.updateQueue.length; i++) {
+      debag("waitingUpdater():update_value_start");
+      const {
+        slice,
+        key,
+        value: newValue,
+        forceRerender,
+      } = this.updateQueue[i];
+
+      // INFO: 更新された値をミドルウェアに通す
+      const updatedValue = this._middleware(slice, key, newValue);
+
+      // INFO: 更新された値をストアに反映する
+      this.store.get(slice)?.set(key, updatedValue);
+    }
+
+    debag("waitingUpdater():call_listers_end");
+    this.updateQueue = [];
+    this.listenerQueue = {};
+    this.isUpdateInProgress = false;
+    debag("waitingUpdater():end_with:updated_all_changed_values");
   }
   // private updateValue(
   //   slice: keyof Store,

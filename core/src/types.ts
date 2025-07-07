@@ -37,16 +37,14 @@ export type NotFullRootState<RootState extends RootStateType> = {
 };
 export type PayloadReturnValue<T> = T;
 export type Promiseable<T> = Promise<T> | T;
-export type SetterFunction<T, RootState> = (
+export type SetterFunction<T> = (
   currentValue: T,
-  rootState: RootState
 ) => Promiseable<PayloadReturnValue<T>>;
-// | void;
 export type PayloadValue<
   RootState extends RootStateType,
   Slice extends keyof RootState,
   Key extends keyof RootState[Slice]
-> = RootState[Slice][Key] | SetterFunction<RootState[Slice][Key], RootState>;
+> = RootState[Slice][Key] | SetterFunction<RootState[Slice][Key]>;
 
 export type Payload<
   RootState extends RootStateType,
