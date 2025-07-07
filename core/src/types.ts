@@ -18,7 +18,7 @@ export type Middlewares<RootState extends RootStateType> = {
     [key in keyof RootState[slice]]?: Middleware<RootState, slice, key>;
   };
 };
-export type DebugLevel = 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE';
+export type DebugLevel = "ERROR" | "WARN" | "INFO" | "DEBUG" | "TRACE";
 export type DebugConfig = {
   enabled: boolean;
   level: DebugLevel;
@@ -42,10 +42,7 @@ export type NotFullRootState<RootState extends RootStateType> = {
   [slice in keyof RootState]?: NotFullSlice<RootState, slice>;
 };
 export type PayloadReturnValue<T> = T;
-export type Promiseable<T> = Promise<T> | T;
-export type SetterFunction<T> = (
-  currentValue: T,
-) => Promiseable<PayloadReturnValue<T>>;
+export type SetterFunction<T> = (currentValue: T) => PayloadReturnValue<T>;
 export type PayloadValue<
   RootState extends RootStateType,
   Slice extends keyof RootState,

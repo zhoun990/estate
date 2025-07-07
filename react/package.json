@@ -1,23 +1,25 @@
 {
   "name": "@e-state/react",
-  "version": "0.2.20",
+  "version": "0.3.0",
   "description": "A simple global state management library",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "p": "tsc && npm version patch && npm publish --access public",
+    "p:minor": "tsc && npm version minor && npm publish --access public",
+    "p:major": "tsc && npm version major && npm publish --access public",
     "build": "tsc",
     "build:w": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/zhoun990/estate.git"
+    "url": "git+https://github.com/zhoun990/estate.git"
   },
   "author": "Shu Nagumo",
   "license": "MIT",
   "dependencies": {
-    "@e-state/core": "^0.2.63",
+    "@e-state/core": "0.3.0",
     "react": "^18"
   },
   "devDependencies": {

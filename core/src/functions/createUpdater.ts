@@ -1,6 +1,7 @@
 import { GlobalStore } from "./GlobalStore";
 import { PayloadReturnValue, PayloadValue, RootStateType } from "../types";
 import { getObjectKeys, isCallable } from "./utils";
+import { debugError } from "./debug";
 import { Payload } from "../types";
 export const setter = <RootState extends RootStateType>(
   initialRootState: RootState
@@ -15,7 +16,7 @@ export const setter = <RootState extends RootStateType>(
       try {
         acc[slice] = (payload, forceRenderer) => {
           const globalStore = GlobalStore.getInstance<RootState>();
-          getObjectKeys(payload).forEach(async (key) => {
+          getObjectKeys(payload).forEach((key) => {
             try {
               const cb: PayloadValue<
                 RootState,
@@ -24,12 +25,26 @@ export const setter = <RootState extends RootStateType>(
               > = payload[key]!;
               const setter: (
                 latestValue: RootState[typeof slice][keyof typeof payload]
-              ) => Promise<
-                PayloadReturnValue<
-                  RootState[typeof slice][keyof typeof payload]
-                >
-              > = async (latestValue) =>
-                isCallable(cb) ? await cb(latestValue) : cb;
+              ) => PayloadReturnValue<
+                RootState[typeof slice][keyof typeof payload]
+              > = (latestValue) => {
+                if (isCallable(cb)) {
+                  try {
+                    const result = cb(latestValue);
+                    // Promiseの場合、rejected promiseをキャッチしてdebugErrorで出力
+                    if (result && typeof result.then === 'function') {
+                      result.catch((error: any) => {
+                        debugError('Promise rejected in setter:', error);
+                      });
+                    }
+                    return result;
+                  } catch (error) {
+                    debugError('Error in setter:', error);
+                    return latestValue; // エラーが発生した場合は元の値を返す
+                  }
+                }
+                return cb;
+              };
 
               try {
                 try {

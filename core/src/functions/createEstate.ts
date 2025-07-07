@@ -98,42 +98,29 @@ export const createEstate = <RootState extends RootStateType>(
 
   if (options?.persist?.length) {
     options?.persist.forEach((slice) => {
-      if (Object.prototype.hasOwnProperty.call(initialRootState, slice)) {
-        // persistデータの読み込み
-        getStorageItems(slice)
-          .then((state) => {
-            // 永続化データが存在する場合のみ復元
-            if (state !== null) {
-              globalStore.setSlice(slice, state);
-            }
-          })
-          .catch((error) => {
-            debugError("getStorageItems():promise_resolving_error", error);
-          })
-          .finally(() => {
-            // 復元完了後にリスナーを設定。エラーが発生した場合もリスナーを設定
-            globalStore.subscribeSlice(
-              slice,
-              "THIS_IS_A_LISTENER_FOR_PERSISTANCE",
-              ({ key }) => {
-                setStorageItems(slice, {
-                  [key]: globalStore.getValue(slice, key),
-                });
-              }
-            );
-          });
-      } else {
-        // persistデータがない場合もリスナーを設定
-        globalStore.subscribeSlice(
-          slice,
-          "THIS_IS_A_LISTENER_FOR_PERSISTANCE",
-          ({ key }) => {
-            setStorageItems(slice, {
-              [key]: globalStore.getValue(slice, key),
-            });
+      // persistデータの読み込み
+      getStorageItems(slice)
+        .then((state) => {
+          // 永続化データが存在する場合のみ復元
+          if (state !== null) {
+            globalStore.setSlice(slice, state);
           }
-        );
-      }
+        })
+        .catch((error) => {
+          debugError("getStorageItems():promise_resolving_error", error);
+        })
+        .finally(() => {
+          // 復元完了後にリスナーを設定。エラーが発生した場合もリスナーを設定
+          globalStore.subscribeSlice(
+            slice,
+            "THIS_IS_A_LISTENER_FOR_PERSISTANCE",
+            ({ key }) => {
+              setStorageItems(slice, {
+                [key]: globalStore.getValue(slice, key),
+              });
+            }
+          );
+        });
     });
   }
 

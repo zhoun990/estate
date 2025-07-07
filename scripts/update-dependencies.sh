@@ -75,13 +75,6 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# react パッケージ自体の依存関係も更新
-cd ..  # react/ ディレクトリに戻る
-npm install  # package-lock.json を更新
-if [ $? -ne 0 ]; then
-    echo "❌ react の依存関係更新に失敗しました"
-    exit 1
-fi
 
 cd ..  # プロジェクトルートに戻る
 

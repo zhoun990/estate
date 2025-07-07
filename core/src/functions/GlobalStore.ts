@@ -7,7 +7,7 @@ import {
   NotFullRootState,
   ListenerCompare,
 } from "../types";
-import { debugDebug, debugError, debugTrace, debugInfo, settings } from "./debug";
+import { debugDebug, debugError, debugTrace, debugInfo } from "./debug";
 import { clone, generateRandomID, getObjectKeys, isFunction } from "./utils";
 export class StoreHandler<Store extends RootStateType> {
   store: Map<any, Map<any, any>>;
@@ -75,14 +75,12 @@ export class GlobalStore<
     key: keyof Store[keyof Store];
     updater: (
       latestValue: Store[keyof Store][keyof Store[keyof Store]]
-    ) => Promise<
-      [
-        keyof Store,
-        keyof Store[keyof Store],
-        Store[keyof Store][keyof Store[keyof Store]],
-        boolean?
-      ]
-    >;
+    ) => [
+      keyof Store,
+      keyof Store[keyof Store],
+      Store[keyof Store][keyof Store[keyof Store]],
+      boolean?
+    ];
   }[] = [];
   private updateQueue: {
     slice: keyof Store;
@@ -125,7 +123,7 @@ export class GlobalStore<
     getObjectKeys(newSlice).forEach((k) => {
       if (Object.prototype.hasOwnProperty.call(newSlice, k)) {
         const v = newSlice[k]!;
-        this.setValue(slice, k, async () => v, forceRerender);
+        this.setValue(slice, k, () => v, forceRerender);
       }
     });
   }
@@ -134,7 +132,7 @@ export class GlobalStore<
     key: keyof Store[typeof slice],
     newValueFn: (
       latestValue: Store[typeof slice][typeof key]
-    ) => Promise<Store[typeof slice][typeof key]>,
+    ) => Store[typeof slice][typeof key],
     forceRerender = false
   ) {
     if (!this.store.has(slice))
@@ -145,10 +143,10 @@ export class GlobalStore<
     this.applyUpdateBuffer.push({
       slice,
       key,
-      updater: async (latestValue) => [
+      updater: (latestValue) => [
         slice,
         key,
-        await newValueFn(latestValue),
+        newValueFn(latestValue),
         forceRerender,
       ],
     });
@@ -194,7 +192,7 @@ export class GlobalStore<
         value,
         slice,
         key,
-        reducer: this,
+        globalStore: this.getStore(),
       });
     return fn;
   }
@@ -223,7 +221,7 @@ export class GlobalStore<
       const { slice, key, updater } = getUpdatedValue;
       try {
         const cloned = this.getClonedValue(slice, key);
-        values = await updater(cloned);
+        values = updater(cloned);
         debugDebug("waitingUpdater():resolved_promise_value_is:\n", values);
         this.updateQueue.push({
           slice,
