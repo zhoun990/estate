@@ -16,6 +16,12 @@
 # ===============================================================================
 
 echo "📋 coreパッケージのバージョンを自動取得中..."
+
+# スクリプトの実行場所に関わらず、プロジェクトルートディレクトリに移動
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
+cd "$PROJECT_ROOT"
+
 # Node.js の require を使って core/package.json から version フィールドを取得
 # -p オプションで評価結果を出力
 CORE_VERSION=$(node -p "require('./core/package.json').version")
@@ -55,11 +61,12 @@ fi
 # reactパッケージの依存関係更新
 # ===============================================================================
 echo "🔄 react パッケージの依存関係を更新中..."
-cd react
+cd "$PROJECT_ROOT/react"
 
 # --save-exact で ^なしの正確なバージョンを package.json に保存
 # 例: "@e-state/core": "0.2.64" (^0.2.64 ではなく)
 npm install @e-state/core@$CORE_VERSION --save-exact
+npm install
 if [ $? -ne 0 ]; then
     echo "❌ react パッケージの依存関係更新に失敗しました"
     exit 1
@@ -68,7 +75,7 @@ fi
 # vite-exampleの依存関係更新
 # react パッケージの依存関係が更新されたため、vite-example も更新が必要
 echo "🔄 vite-example の依存関係を更新中..."
-cd vite-example
+cd "$PROJECT_ROOT/react/vite-example"
 npm install  # package-lock.json を更新
 if [ $? -ne 0 ]; then
     echo "❌ vite-example の依存関係更新に失敗しました"
@@ -76,7 +83,7 @@ if [ $? -ne 0 ]; then
 fi
 
 
-cd ..  # プロジェクトルートに戻る
+cd "$PROJECT_ROOT"  # プロジェクトルートに戻る
 
 
 # ===============================================================================

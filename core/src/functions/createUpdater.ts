@@ -32,14 +32,18 @@ export const setter = <RootState extends RootStateType>(
                   try {
                     const result = cb(latestValue);
                     // Promiseの場合、rejected promiseをキャッチしてdebugErrorで出力
-                    if (result && typeof result.then === 'function') {
+                    if (result && typeof result.then === "function") {
                       result.catch((error: any) => {
-                        debugError('Promise rejected in setter:', error);
+                        debugError("Promise rejected in setter:", error);
                       });
                     }
                     return result;
                   } catch (error) {
-                    debugError('Error in setter:', error);
+                    debugError("Error in setter:", error, {
+                      latestValue,
+                      slice,
+                      key,
+                    });
                     return latestValue; // エラーが発生した場合は元の値を返す
                   }
                 }
