@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "p": "tsc && npm version patch && npm publish --access public",
+    "p": "tsc && npm version patch && npm publish --access public && ../scripts/update-dependencies.sh",
     "build": "tsc",
     "build:w": "tsc --watch",
     "test": "jest",
