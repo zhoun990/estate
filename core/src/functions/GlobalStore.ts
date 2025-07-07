@@ -7,7 +7,7 @@ import {
   NotFullRootState,
   ListenerCompare,
 } from "../types";
-import { debag } from "./debag";
+import { debug } from "./debug";
 export const settings = { debag: false };
 import { clone, generateRandomID, getObjectKeys, isFunction } from "./utils";
 export class StoreHandler<Store extends RootStateType> {
@@ -142,7 +142,7 @@ export class GlobalStore<
       throw new Error("The slice does not exist in the store");
     if (!this.store.get(slice)?.has(key))
       throw new Error("The key does not exist in the slice");
-    debag("setValue():start");
+    debug("setValue():start");
     this.applyUpdateBuffer.push({
       slice,
       key,
@@ -154,7 +154,7 @@ export class GlobalStore<
       ],
     });
     this.updater();
-    debag("setValue():end");
+    debug("setValue():end");
   }
   public setMiddlewares(middlewares: Middlewares<Store>) {
     getObjectKeys(middlewares).forEach((slice) => {
@@ -201,13 +201,13 @@ export class GlobalStore<
   }
   private async updater(virtualStore?: NotFullRootState<Store>) {
     if (this.isUpdateInProgress && !virtualStore) {
-      debag(
+      debug(
         "waitingUpdater():called_while_processing:updater_count_is:",
         this.applyUpdateBuffer.length
       );
       return;
     }
-    debag(
+    debug(
       "waitingUpdater():start:updater_count_is:",
       this.applyUpdateBuffer.length
     );
@@ -225,7 +225,7 @@ export class GlobalStore<
       try {
         const cloned = this.getClonedValue(slice, key);
         values = await updater(cloned);
-        debag("waitingUpdater():resolved_promise_value_is:\n", values);
+        debug("waitingUpdater():resolved_promise_value_is:\n", values);
         this.updateQueue.push({
           slice,
           key,
@@ -233,13 +233,13 @@ export class GlobalStore<
           forceRerender: !!values[3],
         });
       } catch (error) {
-        debag("waitingUpdater():promise_resolving_error", error);
+        debug("waitingUpdater():promise_resolving_error", error);
       }
     }
 
     // INFO: bufferに値が残っている場合は、virtualStoreに値を追加して次の更新を行う
     if (this.applyUpdateBuffer.length) {
-      debag("waitingUpdater():call_next_waitingUpdater");
+      debug("waitingUpdater():call_next_waitingUpdater");
       if (!virtualStore) {
         virtualStore = {};
       }
@@ -248,7 +248,7 @@ export class GlobalStore<
           try {
             virtualStore[values[0]] = clone(this.getStore()[values[0]]);
           } catch (error) {
-            debag(
+            debug(
               "waitingUpdater():error_on_set_temp_slice",
               error,
               this.getSlice(values[0])
@@ -257,20 +257,20 @@ export class GlobalStore<
         }
         // INFO: 適用済みの仮想ストアに更新値を追加する
         virtualStore[values[0]]![values[1]] = values[2];
-        debag("waitingUpdater():added_updated_value_to_temp_store");
+        debug("waitingUpdater():added_updated_value_to_temp_store");
       }
       // INFO: virtualStoreを渡して、次の更新を行う
       this.updater(virtualStore);
-      debag("waitingUpdater():end_with:called_next_waitingUpdater");
+      debug("waitingUpdater():end_with:called_next_waitingUpdater");
 
       // INFO: 再帰呼び出ししているので、この呼び出しでは処理を終了する
       return;
     }
 
     // INFO: 更新キューに値がない場合は、更新を行う
-    debag("waitingUpdater():no_updater_in_queue:update_stacked_values");
+    debug("waitingUpdater():no_updater_in_queue:update_stacked_values");
     for (let i = 0; i < this.updateQueue.length; i++) {
-      debag("waitingUpdater():update_value_start");
+      debug("waitingUpdater():update_value_start");
       const {
         slice,
         key,
@@ -287,7 +287,7 @@ export class GlobalStore<
         key,
       };
     }
-    debag("waitingUpdater():update_value_end");
+    debug("waitingUpdater():update_value_end");
 
     // INFO: リスナーに通知する
     for (const listenerKey in this.listenerQueue) {
@@ -304,7 +304,7 @@ export class GlobalStore<
       const listeners = this.getListeners(slice, key);
 
       if (forceRerender || oldValue !== newValue) {
-        debag(`waitingUpdater():call_listers_start(${listenerKey})`);
+        debug(`waitingUpdater():call_listers_start(${listenerKey})`);
         for (let index = 0; index < listeners.length; index++) {
           const updateId = generateRandomID(20);
           const { callback, compare } = listeners[index];
@@ -323,7 +323,7 @@ export class GlobalStore<
 
     // INFO: storeに反映する
     for (let i = 0; i < this.updateQueue.length; i++) {
-      debag("waitingUpdater():update_value_start");
+      debug("waitingUpdater():update_value_start");
       const {
         slice,
         key,
@@ -338,11 +338,11 @@ export class GlobalStore<
       this.store.get(slice)?.set(key, updatedValue);
     }
 
-    debag("waitingUpdater():call_listers_end");
+    debug("waitingUpdater():call_listers_end");
     this.updateQueue = [];
     this.listenerQueue = {};
     this.isUpdateInProgress = false;
-    debag("waitingUpdater():end_with:updated_all_changed_values");
+    debug("waitingUpdater():end_with:updated_all_changed_values");
   }
   // private updateValue(
   //   slice: keyof Store,
@@ -398,13 +398,13 @@ export class GlobalStore<
       id: path.join("###"),
       callback: (args) => {
         if (once) {
-          debag("subscribe():start:callback:once");
+          debug("subscribe():start:callback:once");
           this.unsubscribe(path.join("###"));
         } else {
-          debag("subscribe():start:callback");
+          debug("subscribe():start:callback");
         }
         callback(args);
-        debag("subscribe():end:callback");
+        debug("subscribe():end:callback");
       },
       compare,
     });
@@ -414,7 +414,7 @@ export class GlobalStore<
     delete this.listeners[id];
   }
   private getListeners(slice: keyof Store, key: keyof Store[keyof Store]) {
-    debag("getListeners():start:create_listeners_array");
+    debug("getListeners():start:create_listeners_array");
     const listeners = Object.keys(this.listeners).filter((id) => {
       try {
         const path = id.split("###");
@@ -432,7 +432,7 @@ export class GlobalStore<
         );
       }
     });
-    debag(
+    debug(
       "getListeners():end:create_listeners_array:listeners_count:",
       listeners.length
     );

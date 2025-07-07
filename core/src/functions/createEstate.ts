@@ -6,6 +6,7 @@ import {
 } from "../types";
 import { GlobalStore, settings } from "./GlobalStore";
 import { setter } from "./createUpdater";
+import { debug } from "./debug";
 import { clone, getObjectKeys, replacer, reviver } from "./utils";
 /**
  *
@@ -33,22 +34,39 @@ export const createEstate = <RootState extends RootStateType>(
 
   const getStorageItems = async (
     slice: keyof RootState
-  ): Promise<RootState[keyof RootState]> => {
+  ): Promise<RootState[keyof RootState] | null> => {
     const getItem = (k: Extract<keyof RootState[keyof RootState], string>) =>
       options?.storage?.getItem(k);
 
     const items = {} as RootState[keyof RootState];
+    let hasPersistedData = false;
+
     if (typeof options?.storage?.getItem) {
       for (const key in initialRootState[slice]) {
-        const item = JSON.parse((await getItem(key)) || "null", reviver);
-
-        if (item) {
-          items[key] = item;
+        const storageValue = await getItem(key);
+        if (storageValue !== null && storageValue !== undefined) {
+          try {
+            const item = JSON.parse(storageValue, reviver);
+            if (item !== null && item !== undefined) {
+              items[key] = item;
+              hasPersistedData = true;
+            }
+          } catch (error) {
+            debug(
+              "getStorageItems():JSON.parse_error",
+              error,
+              key,
+              storageValue
+            );
+          }
         }
       }
     }
-    return items;
+
+    // 永続化データが存在しない場合はnullを返す
+    return hasPersistedData ? items : null;
   };
+
   const setStorageItems = <State extends Record<any, any>>(
     slice: keyof RootState,
     state: State
@@ -69,24 +87,48 @@ export const createEstate = <RootState extends RootStateType>(
       }
     }
   };
+
   if (options?.persist?.length) {
     options?.persist.forEach((slice) => {
       if (Object.prototype.hasOwnProperty.call(initialRootState, slice)) {
-        getStorageItems(slice).then((state) => {
-          if (state) globalStore.setSlice(slice, state);
-        });
-      }
-      globalStore.subscribeSlice(
-        slice,
-        "THIS_IS_A_LISTENER_FOR_PERSISTANCE",
-        ({ key }) => {
-          setStorageItems(slice, {
-            [key]: globalStore.getValue(slice, key),
+        // persistデータの読み込み
+        getStorageItems(slice)
+          .then((state) => {
+            // 永続化データが存在する場合のみ復元
+            if (state !== null) {
+              globalStore.setSlice(slice, state);
+            }
+          })
+          .catch((error) => {
+            debug("getStorageItems():promise_resolving_error", error);
+          })
+          .finally(() => {
+            // 復元完了後にリスナーを設定。エラーが発生した場合もリスナーを設定
+            globalStore.subscribeSlice(
+              slice,
+              "THIS_IS_A_LISTENER_FOR_PERSISTANCE",
+              ({ key }) => {
+                setStorageItems(slice, {
+                  [key]: globalStore.getValue(slice, key),
+                });
+              }
+            );
           });
-        }
-      );
+      } else {
+        // persistデータがない場合もリスナーを設定
+        globalStore.subscribeSlice(
+          slice,
+          "THIS_IS_A_LISTENER_FOR_PERSISTANCE",
+          ({ key }) => {
+            setStorageItems(slice, {
+              [key]: globalStore.getValue(slice, key),
+            });
+          }
+        );
+      }
     });
   }
+
   const clearEstate = <T extends keyof RootState>(slice?: T) => {
     if (slice) {
       globalStore.setSlice(slice, initialRootState[slice]);
