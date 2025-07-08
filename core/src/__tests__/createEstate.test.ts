@@ -1,6 +1,7 @@
 import { createEstate } from "../functions/createEstate";
 import { GlobalStore } from "../functions/GlobalStore";
 import { resetDebugSettings } from "../functions/debug";
+import { STORAGE_PREFIX } from "../constants";
 
 describe("createEstate", () => {
   beforeEach(() => {
@@ -71,15 +72,15 @@ describe("createEstate", () => {
       expect((global as any).localStorageMock.getItem).toHaveBeenCalled();
       // The implementation attempts to restore persisted data for the user slice
       expect((global as any).localStorageMock.getItem).toHaveBeenCalledWith(
-        "name"
+        `${STORAGE_PREFIX}name`
       );
     });
 
     it("should restore data from localStorage", async () => {
       (global as any).localStorageMock.getItem.mockImplementation(
         (key: string) => {
-          if (key === "name") return JSON.stringify("Jane");
-          if (key === "age") return JSON.stringify(25);
+          if (key === `${STORAGE_PREFIX}name`) return JSON.stringify("Jane");
+          if (key === `${STORAGE_PREFIX}age`) return JSON.stringify(25);
           return null;
         }
       );
@@ -126,7 +127,7 @@ describe("createEstate", () => {
         .length;
       expect(finalCallCount).toBeGreaterThan(initialCallCount);
       expect((global as any).localStorageMock.setItem).toHaveBeenCalledWith(
-        "name",
+        `${STORAGE_PREFIX}name`,
         expect.any(String)
       );
     });
@@ -147,7 +148,7 @@ describe("createEstate", () => {
       });
 
       expect(customStorage.getItem).toHaveBeenCalled();
-      expect(customStorage.getItem).toHaveBeenCalledWith("name");
+      expect(customStorage.getItem).toHaveBeenCalledWith(`${STORAGE_PREFIX}name`);
     });
 
     it("should handle async storage", async () => {
@@ -366,13 +367,13 @@ describe("createEstate", () => {
 
       (global as any).localStorageMock.getItem.mockImplementation(
         (key: string) => {
-          if (key === "map") {
+          if (key === `${STORAGE_PREFIX}map`) {
             return JSON.stringify({
               dataType: "Map",
               value: [["key2", "value2"]],
             });
           }
-          if (key === "set") {
+          if (key === `${STORAGE_PREFIX}set`) {
             return JSON.stringify({
               dataType: "Set",
               value: [4, 5, 6],

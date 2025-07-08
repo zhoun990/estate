@@ -29,6 +29,7 @@ export type Options<RootState extends RootStateType> = {
   storage?: {
     getItem(key: any): Promise<any> | any;
     setItem(key: any, value: any): Promise<void> | void;
+    removeItem?(key: any): Promise<void> | void;
   };
   middlewares?: Middlewares<RootState>;
   debug?: boolean | DebugConfig;

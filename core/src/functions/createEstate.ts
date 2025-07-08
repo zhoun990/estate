@@ -8,6 +8,15 @@ import { GlobalStore } from "./GlobalStore";
 import { setter } from "./createUpdater";
 import { debugError, settings } from "./debug";
 import { clone, getObjectKeys, replacer, reviver } from "./utils";
+import {
+  addStoredKey,
+  clearSliceFromStorage,
+  getStoredKeys,
+  clearAllStoredKeys,
+  getStorageInfo,
+  cleanupUnusedKeys,
+} from "./cleanup";
+import { STORAGE_PREFIX } from "../constants";
 /**
  *
  * @param initialRootState - Key value pair of StateLabel and state
@@ -21,7 +30,7 @@ export const createEstate = <RootState extends RootStateType>(
 ) => {
   // デバッグ設定の初期化
   if (options?.debug) {
-    if (typeof options.debug === 'boolean') {
+    if (typeof options.debug === "boolean") {
       settings.debug.enabled = options.debug;
     } else {
       settings.debug.enabled = options.debug.enabled;
@@ -43,21 +52,42 @@ export const createEstate = <RootState extends RootStateType>(
   const getStorageItems = async (
     slice: keyof RootState
   ): Promise<RootState[keyof RootState] | null> => {
-    const getItem = (k: Extract<keyof RootState[keyof RootState], string>) =>
-      options?.storage?.getItem(k);
+    const getItem = (k: string) => options?.storage?.getItem(k);
 
     const items = {} as RootState[keyof RootState];
     let hasPersistedData = false;
 
     if (typeof options?.storage?.getItem) {
       for (const key in initialRootState[slice]) {
-        const storageValue = await getItem(key);
+        const prefixedKey = `${STORAGE_PREFIX}${key}`;
+        const legacyKey = key;
+
+        // まずプレフィックス付きキーで読み込み試行
+        let storageValue = await getItem(prefixedKey);
+        let isLegacyData = false;
+
+        // 後方互換 プレフィックス付きキーで見つからない場合は従来キーで読み込み
+        if (storageValue === null || storageValue === undefined) {
+          storageValue = await getItem(legacyKey);
+          isLegacyData = true;
+        }
+
         if (storageValue !== null && storageValue !== undefined) {
           try {
             const item = JSON.parse(storageValue, reviver);
             if (item !== null && item !== undefined) {
               items[key] = item;
               hasPersistedData = true;
+
+              // 後方互換 従来データの場合は新しいキーに移行してから古いキーを削除
+              if (
+                isLegacyData &&
+                options?.storage?.setItem &&
+                options?.storage?.removeItem
+              ) {
+                await options.storage.setItem(prefixedKey, storageValue);
+                await options.storage.removeItem(legacyKey);
+              }
             }
           } catch (error) {
             debugError(
@@ -79,10 +109,7 @@ export const createEstate = <RootState extends RootStateType>(
     slice: keyof RootState,
     state: State
   ) => {
-    const setItem = (
-      k: Extract<keyof RootState[keyof RootState], string>,
-      v: string
-    ) => options?.storage?.setItem(k, v);
+    const setItem = (k: string, v: string) => options?.storage?.setItem(k, v);
 
     if (options?.storage?.setItem) {
       for (const key in initialRootState[slice]) {
@@ -90,7 +117,9 @@ export const createEstate = <RootState extends RootStateType>(
           Object.prototype.hasOwnProperty.call(initialRootState[slice], key) &&
           Object.prototype.hasOwnProperty.call(state, key)
         ) {
-          setItem(key, JSON.stringify(state[key], replacer));
+          const prefixedKey = `${STORAGE_PREFIX}${key}`;
+          setItem(prefixedKey, JSON.stringify(state[key], replacer));
+          addStoredKey(prefixedKey);
         }
       }
     }
@@ -127,9 +156,19 @@ export const createEstate = <RootState extends RootStateType>(
   const clearEstate = <T extends keyof RootState>(slice?: T) => {
     if (slice) {
       globalStore.setSlice(slice, initialRootState[slice]);
+      // 永続化されているスライスの場合、ストレージからも削除
+      if (options?.persist?.includes(slice)) {
+        const sliceKeys = Object.keys(initialRootState[slice]) as string[];
+        clearSliceFromStorage(String(slice), sliceKeys);
+      }
     } else {
       getObjectKeys(initialRootState).forEach((slice) => {
         globalStore.setSlice(slice, initialRootState[slice]);
+        // 永続化されているスライスの場合、ストレージからも削除
+        if (options?.persist?.includes(slice)) {
+          const sliceKeys = Object.keys(initialRootState[slice]) as string[];
+          clearSliceFromStorage(String(slice), sliceKeys);
+        }
       });
     }
   };
@@ -157,5 +196,10 @@ export const createEstate = <RootState extends RootStateType>(
         once,
       }),
     clearEstate,
+    // クリーンアップ関数をエクスポート
+    getStoredKeys,
+    clearAllStoredKeys,
+    getStorageInfo,
+    cleanupUnusedKeys,
   };
 };

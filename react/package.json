@@ -19,7 +19,7 @@
   "author": "Shu Nagumo",
   "license": "MIT",
   "dependencies": {
-    "@e-state/core": "0.3.4",
+    "@e-state/core": "0.3.6",
     "react": "^18"
   },
   "devDependencies": {
