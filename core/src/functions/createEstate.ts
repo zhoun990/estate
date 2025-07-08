@@ -107,7 +107,7 @@ export const createEstate = <RootState extends RootStateType>(
     return hasPersistedData ? items : null;
   };
 
-  const setStorageItems = <State extends Record<any, any>>(
+  const setStorageItems = async <State extends Record<any, any>>(
     slice: keyof RootState,
     state: State
   ) => {
@@ -120,8 +120,8 @@ export const createEstate = <RootState extends RootStateType>(
           Object.prototype.hasOwnProperty.call(state, key)
         ) {
           const prefixedKey = `${STORAGE_PREFIX}${key}`;
-          setItem(prefixedKey, JSON.stringify(state[key], replacer));
-          addStoredKey(prefixedKey);
+          await setItem(prefixedKey, JSON.stringify(state[key], replacer));
+          await addStoredKey(prefixedKey);
         }
       }
     }
@@ -145,8 +145,8 @@ export const createEstate = <RootState extends RootStateType>(
           globalStore.subscribeSlice(
             slice,
             "THIS_IS_A_LISTENER_FOR_PERSISTANCE",
-            ({ key }) => {
-              setStorageItems(slice, {
+            async ({ key }) => {
+              await setStorageItems(slice, {
                 [key]: globalStore.getValue(slice, key),
               });
             }
@@ -155,23 +155,23 @@ export const createEstate = <RootState extends RootStateType>(
     });
   }
 
-  const clearEstate = <T extends keyof RootState>(slice?: T) => {
+  const clearEstate = async <T extends keyof RootState>(slice?: T) => {
     if (slice) {
       globalStore.setSlice(slice, initialRootState[slice]);
       // 永続化されているスライスの場合、ストレージからも削除
       if (options?.persist?.includes(slice)) {
         const sliceKeys = Object.keys(initialRootState[slice]) as string[];
-        clearSliceFromStorage(String(slice), sliceKeys);
+        await clearSliceFromStorage(String(slice), sliceKeys);
       }
     } else {
-      getObjectKeys(initialRootState).forEach((slice) => {
+      for (const slice of getObjectKeys(initialRootState)) {
         globalStore.setSlice(slice, initialRootState[slice]);
         // 永続化されているスライスの場合、ストレージからも削除
         if (options?.persist?.includes(slice)) {
           const sliceKeys = Object.keys(initialRootState[slice]) as string[];
-          clearSliceFromStorage(String(slice), sliceKeys);
+          await clearSliceFromStorage(String(slice), sliceKeys);
         }
-      });
+      }
     }
   };
 

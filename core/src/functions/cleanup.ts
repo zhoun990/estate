@@ -13,29 +13,29 @@ import { Options } from "../types";
  * 初期化済みクリーンアップユーティリティの型定義
  */
 export type CleanupUtils = {
-  getStoredKeys: () => string[];
-  addStoredKey: (key: string) => void;
-  removeStoredKey: (key: string) => void;
-  clearSliceFromStorage: (slice: string | number, sliceKeys: string[]) => void;
-  clearAllStoredKeys: () => void;
-  getStorageInfo: () => {
+  getStoredKeys: () => Promise<string[]>;
+  addStoredKey: (key: string) => Promise<void>;
+  removeStoredKey: (key: string) => Promise<void>;
+  clearSliceFromStorage: (slice: string | number, sliceKeys: string[]) => Promise<void>;
+  clearAllStoredKeys: () => Promise<void>;
+  getStorageInfo: () => Promise<{
     keys: string[];
     totalSize: number;
     keyCount: number;
-  };
-  cleanupUnusedKeys: (activeKeys: string[]) => void;
+  }>;
+  cleanupUnusedKeys: (activeKeys: string[]) => Promise<void>;
 };
 
 /**
  * 現在記録されているすべてのキーを取得
  */
-export const getStoredKeys = (storage?: Options<any>['storage']): string[] => {
+export const getStoredKeys = async (storage?: Options<any>['storage']): Promise<string[]> => {
   if (!storage?.getItem) {
     return [];
   }
   
   try {
-    const storedKeys = storage.getItem(ESTATE_KEYS_STORAGE_KEY);
+    const storedKeys = await storage.getItem(ESTATE_KEYS_STORAGE_KEY);
     return storedKeys ? JSON.parse(storedKeys) : [];
   } catch (error) {
     debugError("getStoredKeys():JSON.parse_error", error);
@@ -46,16 +46,16 @@ export const getStoredKeys = (storage?: Options<any>['storage']): string[] => {
 /**
  * 新しいキーを記録に追加
  */
-export const addStoredKey = (key: string, storage?: Options<any>['storage']): void => {
+export const addStoredKey = async (key: string, storage?: Options<any>['storage']): Promise<void> => {
   if (!storage?.setItem) {
     return;
   }
   
   try {
-    const currentKeys = getStoredKeys(storage);
+    const currentKeys = await getStoredKeys(storage);
     if (!currentKeys.includes(key)) {
       currentKeys.push(key);
-      storage.setItem(ESTATE_KEYS_STORAGE_KEY, JSON.stringify(currentKeys));
+      await storage.setItem(ESTATE_KEYS_STORAGE_KEY, JSON.stringify(currentKeys));
       debugDebug("addStoredKey():added_key:", key);
     }
   } catch (error) {
@@ -66,15 +66,15 @@ export const addStoredKey = (key: string, storage?: Options<any>['storage']): vo
 /**
  * 記録からキーを削除
  */
-export const removeStoredKey = (key: string, storage?: Options<any>['storage']): void => {
+export const removeStoredKey = async (key: string, storage?: Options<any>['storage']): Promise<void> => {
   if (!storage?.setItem) {
     return;
   }
   
   try {
-    const currentKeys = getStoredKeys(storage);
+    const currentKeys = await getStoredKeys(storage);
     const filteredKeys = currentKeys.filter(k => k !== key);
-    storage.setItem(ESTATE_KEYS_STORAGE_KEY, JSON.stringify(filteredKeys));
+    await storage.setItem(ESTATE_KEYS_STORAGE_KEY, JSON.stringify(filteredKeys));
     debugDebug("removeStoredKey():removed_key:", key);
   } catch (error) {
     debugError("removeStoredKey():error", error, key);
@@ -84,28 +84,28 @@ export const removeStoredKey = (key: string, storage?: Options<any>['storage']):
 /**
  * 特定のスライスのキーを削除
  */
-export const clearSliceFromStorage = (
+export const clearSliceFromStorage = async (
   slice: string | number,
   sliceKeys: string[],
   storage?: Options<any>['storage']
-): void => {
+): Promise<void> => {
   if (!storage?.removeItem) {
     return;
   }
   
   try {
-    sliceKeys.forEach(key => {
+    for (const key of sliceKeys) {
       // プレフィックス付きキーと従来キーの両方を削除
       const prefixedKey = `${STORAGE_PREFIX}${key}`;
       const legacyKey = key;
       
-      storage.removeItem!(prefixedKey);
-      storage.removeItem!(legacyKey);
-      removeStoredKey(prefixedKey, storage);
-      removeStoredKey(legacyKey, storage);
+      await storage.removeItem!(prefixedKey);
+      await storage.removeItem!(legacyKey);
+      await removeStoredKey(prefixedKey, storage);
+      await removeStoredKey(legacyKey, storage);
       debugDebug("clearSliceFromStorage():removed_key:", prefixedKey);
       debugDebug("clearSliceFromStorage():removed_legacy_key:", legacyKey);
-    });
+    }
   } catch (error) {
     debugError("clearSliceFromStorage():error", error, slice);
   }
@@ -114,20 +114,20 @@ export const clearSliceFromStorage = (
 /**
  * 記録されているすべてのキーを削除
  */
-export const clearAllStoredKeys = (storage?: Options<any>['storage']): void => {
+export const clearAllStoredKeys = async (storage?: Options<any>['storage']): Promise<void> => {
   if (!storage?.removeItem) {
     return;
   }
   
   try {
-    const keys = getStoredKeys(storage);
-    keys.forEach(key => {
-      storage.removeItem!(key);
+    const keys = await getStoredKeys(storage);
+    for (const key of keys) {
+      await storage.removeItem!(key);
       debugDebug("clearAllStoredKeys():removed_key:", key);
-    });
+    }
     
     // キー記録自体も削除
-    storage.removeItem!(ESTATE_KEYS_STORAGE_KEY);
+    await storage.removeItem!(ESTATE_KEYS_STORAGE_KEY);
     debugDebug("clearAllStoredKeys():cleared_all_keys");
   } catch (error) {
     debugError("clearAllStoredKeys():error", error);
@@ -137,25 +137,25 @@ export const clearAllStoredKeys = (storage?: Options<any>['storage']): void => {
 /**
  * 現在のストレージ状態を取得
  */
-export const getStorageInfo = (storage?: Options<any>['storage']): {
+export const getStorageInfo = async (storage?: Options<any>['storage']): Promise<{
   keys: string[];
   totalSize: number;
   keyCount: number;
-} => {
+}> => {
   if (!storage?.getItem) {
     return { keys: [], totalSize: 0, keyCount: 0 };
   }
   
-  const keys = getStoredKeys(storage);
+  const keys = await getStoredKeys(storage);
   let totalSize = 0;
   
   try {
-    keys.forEach(key => {
-      const value = storage.getItem(key);
+    for (const key of keys) {
+      const value = await storage.getItem(key);
       if (value) {
         totalSize += key.length + value.length;
       }
-    });
+    }
   } catch (error) {
     debugError("getStorageInfo():error", error);
   }
@@ -170,20 +170,20 @@ export const getStorageInfo = (storage?: Options<any>['storage']): {
 /**
  * 未使用のキーを検出・削除
  */
-export const cleanupUnusedKeys = (activeKeys: string[], storage?: Options<any>['storage']): void => {
+export const cleanupUnusedKeys = async (activeKeys: string[], storage?: Options<any>['storage']): Promise<void> => {
   if (!storage?.removeItem) {
     return;
   }
   
   try {
-    const storedKeys = getStoredKeys(storage);
+    const storedKeys = await getStoredKeys(storage);
     const unusedKeys = storedKeys.filter(key => !activeKeys.includes(key));
     
-    unusedKeys.forEach(key => {
-      storage.removeItem!(key);
-      removeStoredKey(key, storage);
+    for (const key of unusedKeys) {
+      await storage.removeItem!(key);
+      await removeStoredKey(key, storage);
       debugDebug("cleanupUnusedKeys():removed_unused_key:", key);
-    });
+    }
     
     if (unusedKeys.length > 0) {
       debugDebug("cleanupUnusedKeys():removed_count:", unusedKeys.length);
