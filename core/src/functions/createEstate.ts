@@ -195,11 +195,6 @@ export const createEstate = <RootState extends RootStateType>(
         compare,
         once,
       }),
-    clearEstate,
-    // クリーンアップ関数をエクスポート
-    getStoredKeys,
-    clearAllStoredKeys,
-    getStorageInfo,
-    cleanupUnusedKeys,
+    clearEstate,    
   };
 };
