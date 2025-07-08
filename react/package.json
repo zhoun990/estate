@@ -1,6 +1,6 @@
 {
   "name": "@e-state/react",
-  "version": "0.3.15",
+  "version": "0.3.17",
   "description": "A simple global state management library",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -19,7 +19,7 @@
   "author": "Shu Nagumo",
   "license": "MIT",
   "dependencies": {
-    "@e-state/core": "0.3.18",
+    "@e-state/core": "0.3.21",
     "react": "^18"
   },
   "devDependencies": {

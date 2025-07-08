@@ -150,7 +150,10 @@ export const createEstate = <RootState extends RootStateType>(
                 slice,
                 Object.keys(state).toString()
               );
-              globalStore.setSlice(slice, state);
+              // オブジェクトをMapに変換して直接設定
+              const stateMap = new Map(Object.entries(state));
+              globalStore.store.set(slice, stateMap);
+
             }
           })
           .catch((error) => {
@@ -161,8 +164,8 @@ export const createEstate = <RootState extends RootStateType>(
             globalStore.subscribeSlice(
               slice,
               "THIS_IS_A_LISTENER_FOR_PERSISTANCE",
-              async ({ key }) => {
-                await setStorageItems(slice, {
+              ({ key }) => {
+                setStorageItems(slice, {
                   [key]: globalStore.getValue(slice, key),
                 });
               }

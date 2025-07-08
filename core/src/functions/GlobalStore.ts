@@ -55,12 +55,15 @@ export class GlobalStore<
   Store extends RootStateType
 > extends StoreHandler<Store> {
   private static instance: GlobalStore<any>;
+
   public initialState: Store = {} as Store;
+
   private middlewares: {
     [slice in keyof Store]?: {
       [key in keyof Store[slice]]?: Middleware<Store, slice, key>;
     };
   } = {};
+
   private listeners: Record<
     string,
     {
@@ -69,7 +72,9 @@ export class GlobalStore<
       compare?: ListenerCompare;
     }
   > = {};
+
   private isUpdateInProgress = false;
+
   private applyUpdateBuffer: {
     slice: keyof Store;
     key: keyof Store[keyof Store];
@@ -82,22 +87,18 @@ export class GlobalStore<
       boolean?
     ];
   }[] = [];
-  private updateQueue: {
-    slice: keyof Store;
-    key: keyof Store[keyof Store];
-    value: Store[keyof Store][keyof Store[keyof Store]];
-    forceRerender: boolean;
-  }[] = [];
 
   private listenerQueue: Record<
     string,
     {
       forceRerender: boolean;
-      value: Store[keyof Store][keyof Store[keyof Store]];
       slice: keyof Store;
       key: keyof Store[keyof Store];
     }
   > = {};
+
+  private oldPartialStore: NotFullRootState<Store> = {};
+
   private initialized = false;
 
   private constructor(initialState: Store) {
@@ -216,12 +217,34 @@ export class GlobalStore<
     }
     return fn;
   }
-  private async updater(virtualStore?: NotFullRootState<Store>) {
+
+  private setOldPartialStore(
+    slice: keyof Store,
+    key: keyof Store[typeof slice],
+    value: Store[typeof slice][typeof key]
+  ) {
+    if (!this.oldPartialStore[slice]) {
+      this.oldPartialStore[slice] = {};
+    }
+    this.oldPartialStore[slice] = {
+      ...this.oldPartialStore[slice],
+      [key]: value,
+    };
+  }
+
+  private getOldPartialStore(
+    slice: keyof Store,
+    key: keyof Store[typeof slice]
+  ) {
+    return this.oldPartialStore[slice]?.[key];
+  }
+
+  private async updater() {
     if (!this.initialized) {
       debugDebug("fn updater():GlobalStore_not_initialized");
       return;
     }
-    if (this.isUpdateInProgress && !virtualStore) {
+    if (this.isUpdateInProgress) {
       debugDebug(
         "fn updater():called_while_processing:updater_count_is:",
         this.applyUpdateBuffer.length
@@ -234,98 +257,66 @@ export class GlobalStore<
     );
     this.isUpdateInProgress = true;
 
+    // INFO: 更新キューから値を取得する。破壊的。
     const getUpdatedValue = this.applyUpdateBuffer?.shift();
-    let values: [
-      keyof Store,
-      keyof Store[keyof Store],
-      Store[keyof Store][keyof Store[keyof Store]],
-      boolean?
-    ] = [] as any;
+
     if (getUpdatedValue) {
       const { slice, key, updater } = getUpdatedValue;
       try {
-        const cloned = this.getClonedValue(slice, key);
-        values = updater(cloned);
-        debugDebug(
-          "fn updater():update_queue_push:\n---start\n",
-          JSON.stringify(values, undefined, 2),
-          "\n---end"
+        // INFO: 古い値が保存されていない場合は、古い値を保存する
+        if (!this.getOldPartialStore(slice, key)) {
+          // INFO: 参照だと比較できないのでディープコピーする
+          const cloned = this.getClonedValue(slice, key);
+
+          // INFO: 比較用に古い値を保存する
+          this.setOldPartialStore(slice, key, cloned);
+        }
+
+        // INFO: 参照を渡す。値が更新される可能性がある。
+        const [_slice, _key, newValue, forceRerender] = updater(
+          this.getValue(slice, key)
         );
-        this.updateQueue.push({
+
+        // INFO: 更新された値をミドルウェアに通す
+        const updatedValue = this._middleware(slice, key, newValue);
+
+        // INFO: 更新された値をストアに反映する
+        this.store.get(slice)?.set(key, updatedValue);
+
+        // INFO: 更新された値をリスナーキューに追加する。重複している場合は上書きする
+        const listenerKey = `${slice.toString()}###${key.toString()}`;
+        this.listenerQueue[listenerKey] = {
+          forceRerender: !!forceRerender,
           slice,
           key,
-          value: values[2],
-          forceRerender: !!values[3],
-        });
+        };
+
+        debugDebug(
+          "fn updater():update_queue_push:\n---start\n",
+          `slice:${slice.toString()}\nkey:${key.toString()}\nnewValue:${newValue.toString()}\nforceRerender:${forceRerender?.toString()}`,
+          "\n---end"
+        );
       } catch (error) {
         debugError("fn updater():promise_resolving_error", error);
       }
     }
 
-    // INFO: bufferに値が残っている場合は、virtualStoreに値を追加して次の更新を行う
+    // INFO: bufferに値が残っている場合は次の更新を行う
     if (this.applyUpdateBuffer.length) {
-      debugTrace("fn updater():fn call_next_updater");
-      if (!virtualStore) {
-        virtualStore = {};
-      }
-      if (values.length) {
-        if (!virtualStore[values[0]]) {
-          try {
-            virtualStore[values[0]] = clone(this.getStore()[values[0]]);
-          } catch (error) {
-            debugError(
-              "fn updater():error_on_set_temp_slice",
-              error,
-              this.getSlice(values[0])
-            );
-          }
-        }
-        // INFO: 適用済みの仮想ストアに更新値を追加する
-        virtualStore[values[0]]![values[1]] = values[2];
-        debugTrace("fn updater():added_updated_value_to_temp_store");
-      }
-      // INFO: virtualStoreを渡して、次の更新を行う
-      this.updater(virtualStore);
-      debugTrace("fn updater():end_with:called_next_updater");
+      this.updater();
 
       // INFO: 再帰呼び出ししているので、この呼び出しでは処理を終了する
       return;
     }
 
-    // INFO: 更新キューに値がない場合は、更新を行う
-    debugTrace("fn updater():no_updater_in_queue:update_stacked_values");
-    for (let i = 0; i < this.updateQueue.length; i++) {
-      const {
-        slice,
-        key,
-        value: newValue,
-        forceRerender,
-      } = this.updateQueue[i];
-      debugDebug(
-        `fn updater():add_to_listener_queue i:${i} ${slice.toString()} ${key.toString()}`
-      );
-      const listenerKey = `${slice.toString()}###${key.toString()}`;
-
-      // INFO: 更新された値をリスナーに通知する。重複している場合は上書きする
-      this.listenerQueue[listenerKey] = {
-        forceRerender: !!forceRerender,
-        value: newValue,
-        slice,
-        key,
-      };
-    }
-    debugTrace("fn updater():end_with:add_to_listener_queue");
-
+    debugTrace("fn updater():start_calling_listeners");
     // INFO: リスナーに通知する
     for (const listenerKey in this.listenerQueue) {
-      const {
-        forceRerender,
-        slice,
-        key,
-        value: newValue,
-      } = this.listenerQueue[listenerKey];
+      const { forceRerender, slice, key } = this.listenerQueue[listenerKey];
+
+      const oldValue = this.getOldPartialStore(slice, key);
       // INFO: 現在のstoreの値は更新前の値なので、storeの値を取得する
-      const oldValue = this.getValue(slice, key);
+      const newValue = this.getValue(slice, key);
 
       // INFO: 登録されているリスナーを取得する
       const listeners = this.getListeners(slice, key);
@@ -349,49 +340,17 @@ export class GlobalStore<
         }
       }
     }
-
-    // INFO: storeに反映する
-    for (let i = 0; i < this.updateQueue.length; i++) {
-      const { slice, key, value: newValue } = this.updateQueue[i];
-      debugDebug(
-        `fn updater():update_value_start i:${i} ${slice.toString()} ${key.toString()}`
-      );
-
-      // INFO: 更新された値をミドルウェアに通す
-      const updatedValue = this._middleware(slice, key, newValue);
-
-      // INFO: 更新された値をストアに反映する
-      this.store.get(slice)?.set(key, updatedValue);
-    }
-
     debugTrace("waitingUpdater():call_listers_end");
-    this.updateQueue = [];
+
+    // INFO: リスナーキューをクリアする
     this.listenerQueue = {};
+    // INFO: 古い値をクリアする
+    this.oldPartialStore = {};
+    // INFO: 更新中フラグをクリアする
     this.isUpdateInProgress = false;
-    debugTrace("waitingUpdater():end_with:updated_all_changed_values");
+
+    debugTrace("fn updater():end_updater");
   }
-  // private updateValue(
-  //   slice: keyof Store,
-  //   key: keyof Store[typeof slice],
-  //   value: Store[typeof slice][typeof key],
-  //   forceRerender?: boolean
-  // ) {
-  //   debag("updateValue():start");
-  //   const oldValue = this.getValue(slice, key);
-  //   this.store[slice][key] = this._middleware(slice, key, value);
-  //   debag("updateValue():is_new_value:", oldValue !== this.getValue(slice, key));
-  //   this.getListeners(slice, key).forEach((callback) => {
-  //     if (forceRerender || oldValue !== this.getValue(slice, key))
-  //       callback({
-  //         newValue: this.getValue(slice, key),
-  //         oldValue,
-  //         slice,
-  //         key,
-  //         listenerId: "",
-  //       });
-  //   });
-  //   debag("updateValue():end");
-  // }
 
   public subscribeSlice(
     slice: keyof Store,
