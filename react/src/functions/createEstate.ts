@@ -26,7 +26,15 @@ export const createEstate = <RootState extends RootStateType>(
   initialRootState: RootState,
   options?: Options<RootState>
 ) => {
-  const { clearEstate, set } = createEstateCore(initialRootState, options);
+  const {
+    clearEstate,
+    set,
+    getStoredKeys,
+    addStoredKey,
+    removeStoredKey,
+    clearSliceFromStorage,
+    clearAllStoredKeys,
+  } = createEstateCore(initialRootState, options);
   const globalStore = GlobalStore.getInstance<RootState>();
   const setEstates = getObjectKeys(initialRootState).reduce<
     SetEstates<RootState>
@@ -214,5 +222,10 @@ export const createEstate = <RootState extends RootStateType>(
     setEstates,
     store: globalStore,
     useSelectorWithSlice,
+    getStoredKeys,
+    addStoredKey,
+    removeStoredKey,
+    clearSliceFromStorage,
+    clearAllStoredKeys,
   };
 };

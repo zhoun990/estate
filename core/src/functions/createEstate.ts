@@ -8,7 +8,7 @@ import { GlobalStore } from "./GlobalStore";
 import { setter } from "./createUpdater";
 import { debugError, settings } from "./debug";
 import { clone, getObjectKeys, replacer, reviver } from "./utils";
-import { addStoredKey, clearSliceFromStorage } from "./cleanup";
+import { createCleanupUtils } from "./cleanup";
 import { STORAGE_PREFIX } from "../constants";
 /**
  *
@@ -41,6 +41,15 @@ export const createEstate = <RootState extends RootStateType>(
   if (options?.middlewares) {
     globalStore.setMiddlewares(options?.middlewares);
   }
+
+  // クリーンアップユーティリティの初期化
+  const {
+    getStoredKeys,
+    addStoredKey,
+    removeStoredKey,
+    clearSliceFromStorage,
+    clearAllStoredKeys,
+  } = createCleanupUtils(options?.storage);
 
   const getStorageItems = async (
     slice: keyof RootState
@@ -189,5 +198,10 @@ export const createEstate = <RootState extends RootStateType>(
         once,
       }),
     clearEstate,
+    getStoredKeys,
+    addStoredKey,
+    removeStoredKey,
+    clearSliceFromStorage,
+    clearAllStoredKeys,
   };
 };

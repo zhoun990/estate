@@ -142,7 +142,6 @@ const logWithLevelBrowser = (level: DebugLevel, ...data: any[]) => {
       GRAY_STYLE,
       ...data
     );
-    console.error("スタックトレース:", new Error().stack);
   } else {
     console.log(
       `%c[${level}]%c ${systemInfo} |`,
