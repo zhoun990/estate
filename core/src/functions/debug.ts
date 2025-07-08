@@ -113,10 +113,6 @@ const logWithLevelNode = (level: DebugLevel, ...data: any[]) => {
 
   if (level === "ERROR") {
     console.error(...logMessage);
-    console.error(
-      `${grayColor}スタックトレース:${ANSI_RESET}`,
-      new Error().stack
-    );
   } else {
     console.log(...logMessage);
   }
