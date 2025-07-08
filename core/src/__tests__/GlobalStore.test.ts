@@ -10,6 +10,8 @@ describe("GlobalStore", () => {
       user: { name: "John", age: 30 },
       settings: { theme: "light", language: "en" },
     });
+    // 初期化フラグを設定
+    store.setInitialized(true);
   });
 
   describe("singleton pattern", () => {

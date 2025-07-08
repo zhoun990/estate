@@ -14,6 +14,8 @@ describe("createUpdater", () => {
     };
     store = GlobalStore.getInstance(initialState);
     setters = setter(initialState);
+    // 初期化フラグを設定
+    store.setInitialized(true);
   });
 
   describe("setter creation", () => {

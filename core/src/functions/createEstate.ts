@@ -6,7 +6,7 @@ import {
 } from "../types";
 import { GlobalStore } from "./GlobalStore";
 import { setter } from "./createUpdater";
-import { debugError, settings } from "./debug";
+import { debugError, debugDebug, settings, debugTrace } from "./debug";
 import { clone, getObjectKeys, replacer, reviver } from "./utils";
 import { createCleanupUtils } from "./cleanup";
 import { STORAGE_PREFIX } from "../constants";
@@ -66,12 +66,21 @@ export const createEstate = <RootState extends RootStateType>(
 
         // まずプレフィックス付きキーで読み込み試行
         let storageValue = await getItem(prefixedKey);
+        if (storageValue) {
+          debugDebug("getStorageItems():getItem", prefixedKey, storageValue);
+        }
         let isLegacyData = false;
 
         // 後方互換 プレフィックス付きキーで見つからない場合は従来キーで読み込み
         if (storageValue === null || storageValue === undefined) {
           storageValue = await getItem(legacyKey);
           isLegacyData = true;
+
+          debugDebug(
+            "getStorageItems():getItem_legacy",
+            prefixedKey,
+            storageValue
+          );
         }
 
         // storageValueがnullやundefinedの場合はキーが存在しないということ
@@ -128,31 +137,47 @@ export const createEstate = <RootState extends RootStateType>(
   };
 
   if (options?.persist?.length) {
-    options.persist.forEach((slice) => {
-      // persistデータの読み込み
-      getStorageItems(slice)
-        .then((state) => {
-          // 永続化データが存在する場合のみ復元
-          if (state !== null) {
-            globalStore.setSlice(slice, state);
-          }
-        })
-        .catch((error) => {
-          debugError("getStorageItems():promise_resolving_error", error);
-        })
-        .finally(() => {
-          // 復元完了後にリスナーを設定。エラーが発生した場合もリスナーを設定
-          globalStore.subscribeSlice(
-            slice,
-            "THIS_IS_A_LISTENER_FOR_PERSISTANCE",
-            async ({ key }) => {
-              await setStorageItems(slice, {
-                [key]: globalStore.getValue(slice, key),
-              });
+    debugDebug("createEstate():start_with:persist_data_loading");
+    Promise.all(
+      options.persist.map((slice) => {
+        // persistデータの読み込み
+        return getStorageItems(slice)
+          .then((state) => {
+            // 永続化データが存在する場合のみ復元
+            if (state !== null) {
+              debugDebug(
+                "createEstate():start_with:persist_data_loading",
+                slice,
+                Object.keys(state).toString()
+              );
+              globalStore.setSlice(slice, state);
             }
-          );
-        });
+          })
+          .catch((error) => {
+            debugError("getStorageItems():promise_resolving_error", error);
+          })
+          .finally(() => {
+            // 復元完了後にリスナーを設定。エラーが発生した場合もリスナーを設定
+            globalStore.subscribeSlice(
+              slice,
+              "THIS_IS_A_LISTENER_FOR_PERSISTANCE",
+              async ({ key }) => {
+                await setStorageItems(slice, {
+                  [key]: globalStore.getValue(slice, key),
+                });
+              }
+            );
+            debugTrace("createEstate():end_with:persist_data_loading");
+          });
+      })
+    ).then(() => {
+      globalStore.setInitialized(true);
+      debugTrace("createEstate():end_with:persist_data_loading");
     });
+    debugTrace("createEstate():promise_left");
+  } else {
+    // persistオプションがない場合は即座に初期化完了とする
+    globalStore.setInitialized(true);
   }
 
   const clearEstate = async <T extends keyof RootState>(slice?: T) => {

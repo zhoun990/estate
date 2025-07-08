@@ -7,7 +7,7 @@ import {
   NotFullRootState,
   ListenerCompare,
 } from "../types";
-import { debugDebug, debugError, debugTrace, debugInfo } from "./debug";
+import { debugDebug, debugError, debugTrace } from "./debug";
 import { clone, generateRandomID, getObjectKeys, isFunction } from "./utils";
 export class StoreHandler<Store extends RootStateType> {
   store: Map<any, Map<any, any>>;
@@ -98,6 +98,7 @@ export class GlobalStore<
       key: keyof Store[keyof Store];
     }
   > = {};
+  private initialized = false;
 
   private constructor(initialState: Store) {
     if (GlobalStore.instance) {
@@ -114,6 +115,13 @@ export class GlobalStore<
       GlobalStore.instance = new GlobalStore(initialState);
     }
     return GlobalStore.instance;
+  }
+  public setInitialized(initialized: boolean) {
+    this.initialized = initialized;
+    if (initialized) {
+      debugDebug("fn setInitialized():GlobalStore_initialized");
+      this.updater();
+    }
   }
   public setSlice(
     slice: keyof Store,
@@ -139,7 +147,7 @@ export class GlobalStore<
       throw new Error("The slice does not exist in the store");
     if (!this.store.get(slice)?.has(key))
       throw new Error("The key does not exist in the slice");
-    debugTrace("setValue():start");
+    debugDebug(`setValue():start ${slice.toString()} ${key.toString()}`);
     this.applyUpdateBuffer.push({
       slice,
       key,
@@ -151,7 +159,7 @@ export class GlobalStore<
       ],
     });
     this.updater();
-    debugTrace("setValue():end");
+    debugTrace(`setValue():end ${slice.toString()} ${key.toString()}`);
   }
   public setMiddlewares(middlewares: Middlewares<Store>) {
     getObjectKeys(middlewares).forEach((slice) => {
@@ -209,15 +217,19 @@ export class GlobalStore<
     return fn;
   }
   private async updater(virtualStore?: NotFullRootState<Store>) {
+    if (!this.initialized) {
+      debugDebug("fn updater():GlobalStore_not_initialized");
+      return;
+    }
     if (this.isUpdateInProgress && !virtualStore) {
-      debugInfo(
-        "waitingUpdater():called_while_processing:updater_count_is:",
+      debugDebug(
+        "fn updater():called_while_processing:updater_count_is:",
         this.applyUpdateBuffer.length
       );
       return;
     }
-    debugTrace(
-      "waitingUpdater():start:updater_count_is:",
+    debugDebug(
+      "fn updater():start:updater_count_is:",
       this.applyUpdateBuffer.length
     );
     this.isUpdateInProgress = true;
@@ -234,7 +246,11 @@ export class GlobalStore<
       try {
         const cloned = this.getClonedValue(slice, key);
         values = updater(cloned);
-        debugDebug("waitingUpdater():resolved_promise_value_is:\n", values);
+        debugDebug(
+          "fn updater():update_queue_push:\n---start\n",
+          JSON.stringify(values, undefined, 2),
+          "\n---end"
+        );
         this.updateQueue.push({
           slice,
           key,
@@ -242,13 +258,13 @@ export class GlobalStore<
           forceRerender: !!values[3],
         });
       } catch (error) {
-        debugError("waitingUpdater():promise_resolving_error", error);
+        debugError("fn updater():promise_resolving_error", error);
       }
     }
 
     // INFO: bufferに値が残っている場合は、virtualStoreに値を追加して次の更新を行う
     if (this.applyUpdateBuffer.length) {
-      debugTrace("waitingUpdater():call_next_waitingUpdater");
+      debugTrace("fn updater():fn call_next_updater");
       if (!virtualStore) {
         virtualStore = {};
       }
@@ -258,7 +274,7 @@ export class GlobalStore<
             virtualStore[values[0]] = clone(this.getStore()[values[0]]);
           } catch (error) {
             debugError(
-              "waitingUpdater():error_on_set_temp_slice",
+              "fn updater():error_on_set_temp_slice",
               error,
               this.getSlice(values[0])
             );
@@ -266,26 +282,28 @@ export class GlobalStore<
         }
         // INFO: 適用済みの仮想ストアに更新値を追加する
         virtualStore[values[0]]![values[1]] = values[2];
-        debugTrace("waitingUpdater():added_updated_value_to_temp_store");
+        debugTrace("fn updater():added_updated_value_to_temp_store");
       }
       // INFO: virtualStoreを渡して、次の更新を行う
       this.updater(virtualStore);
-      debugTrace("waitingUpdater():end_with:called_next_waitingUpdater");
+      debugTrace("fn updater():end_with:called_next_updater");
 
       // INFO: 再帰呼び出ししているので、この呼び出しでは処理を終了する
       return;
     }
 
     // INFO: 更新キューに値がない場合は、更新を行う
-    debugTrace("waitingUpdater():no_updater_in_queue:update_stacked_values");
+    debugTrace("fn updater():no_updater_in_queue:update_stacked_values");
     for (let i = 0; i < this.updateQueue.length; i++) {
-      debugTrace("waitingUpdater():update_value_start");
       const {
         slice,
         key,
         value: newValue,
         forceRerender,
       } = this.updateQueue[i];
+      debugDebug(
+        `fn updater():add_to_listener_queue i:${i} ${slice.toString()} ${key.toString()}`
+      );
       const listenerKey = `${slice.toString()}###${key.toString()}`;
 
       // INFO: 更新された値をリスナーに通知する。重複している場合は上書きする
@@ -296,7 +314,7 @@ export class GlobalStore<
         key,
       };
     }
-    debugTrace("waitingUpdater():update_value_end");
+    debugTrace("fn updater():end_with:add_to_listener_queue");
 
     // INFO: リスナーに通知する
     for (const listenerKey in this.listenerQueue) {
@@ -313,7 +331,9 @@ export class GlobalStore<
       const listeners = this.getListeners(slice, key);
 
       if (forceRerender || oldValue !== newValue) {
-        debugTrace(`waitingUpdater():call_listers_start(${listenerKey})`);
+        debugDebug(
+          `fn updater():call_listers_start(${listenerKey}) ${slice.toString()} ${key.toString()}`
+        );
         for (let index = 0; index < listeners.length; index++) {
           const updateId = generateRandomID(20);
           const { callback, compare } = listeners[index];
@@ -332,12 +352,10 @@ export class GlobalStore<
 
     // INFO: storeに反映する
     for (let i = 0; i < this.updateQueue.length; i++) {
-      debugTrace("waitingUpdater():update_value_start");
-      const {
-        slice,
-        key,
-        value: newValue,
-      } = this.updateQueue[i];
+      const { slice, key, value: newValue } = this.updateQueue[i];
+      debugDebug(
+        `fn updater():update_value_start i:${i} ${slice.toString()} ${key.toString()}`
+      );
 
       // INFO: 更新された値をミドルウェアに通す
       const updatedValue = this._middleware(slice, key, newValue);
