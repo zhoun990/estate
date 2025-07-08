@@ -11,8 +11,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DependencyList, SetEstates } from "../types";
 
 type Selector<T, K> = (value: T) => K;
-type Compare<T, K> = (prev: T, next: T) => boolean;
-type SelectorOrCompare<T, K> = Selector<T, K> | [Selector<T, K>, Compare<T, K>];
+type Compare<T> = (prev: T, next: T) => boolean;
+type SelectorOrCompare<T, K> = Selector<T, K> | [Selector<T, K>, Compare<T>];
 
 //[TODO] 複数個所で初期化してsliceを追加可能に
 /**

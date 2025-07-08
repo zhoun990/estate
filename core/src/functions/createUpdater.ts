@@ -1,6 +1,6 @@
 import { GlobalStore } from "./GlobalStore";
 import { PayloadReturnValue, PayloadValue, RootStateType } from "../types";
-import { getObjectKeys, isCallable } from "./utils";
+import { getObjectKeys, isFunction } from "./utils";
 import { debugError } from "./debug";
 import { Payload } from "../types";
 export const setter = <RootState extends RootStateType>(
@@ -28,7 +28,7 @@ export const setter = <RootState extends RootStateType>(
               ) => PayloadReturnValue<
                 RootState[typeof slice][keyof typeof payload]
               > = (latestValue) => {
-                if (isCallable(cb)) {
+                if (isFunction(cb)) {
                   try {
                     const result = cb(latestValue);
                     // Promiseの場合、rejected promiseをキャッチしてdebugErrorで出力

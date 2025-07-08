@@ -337,7 +337,6 @@ export class GlobalStore<
         slice,
         key,
         value: newValue,
-        forceRerender,
       } = this.updateQueue[i];
 
       // INFO: 更新された値をミドルウェアに通す

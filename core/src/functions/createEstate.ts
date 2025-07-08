@@ -8,14 +8,7 @@ import { GlobalStore } from "./GlobalStore";
 import { setter } from "./createUpdater";
 import { debugError, settings } from "./debug";
 import { clone, getObjectKeys, replacer, reviver } from "./utils";
-import {
-  addStoredKey,
-  clearSliceFromStorage,
-  getStoredKeys,
-  clearAllStoredKeys,
-  getStorageInfo,
-  cleanupUnusedKeys,
-} from "./cleanup";
+import { addStoredKey, clearSliceFromStorage } from "./cleanup";
 import { STORAGE_PREFIX } from "../constants";
 /**
  *
@@ -72,22 +65,22 @@ export const createEstate = <RootState extends RootStateType>(
           isLegacyData = true;
         }
 
+        // storageValueがnullやundefinedの場合はキーが存在しないということ
         if (storageValue !== null && storageValue !== undefined) {
           try {
             const item = JSON.parse(storageValue, reviver);
-            if (item !== null && item !== undefined) {
-              items[key] = item;
-              hasPersistedData = true;
+            // JSON.parseの結果がnullやundefinedでも有効なデータとして扱う
+            items[key] = item;
+            hasPersistedData = true;
 
-              // 後方互換 従来データの場合は新しいキーに移行してから古いキーを削除
-              if (
-                isLegacyData &&
-                options?.storage?.setItem &&
-                options?.storage?.removeItem
-              ) {
-                await options.storage.setItem(prefixedKey, storageValue);
-                await options.storage.removeItem(legacyKey);
-              }
+            // 後方互換 従来データの場合は新しいキーに移行してから古いキーを削除
+            if (
+              isLegacyData &&
+              options?.storage?.setItem &&
+              options?.storage?.removeItem
+            ) {
+              await options.storage.setItem(prefixedKey, storageValue);
+              await options.storage.removeItem(legacyKey);
             }
           } catch (error) {
             debugError(
@@ -195,6 +188,6 @@ export const createEstate = <RootState extends RootStateType>(
         compare,
         once,
       }),
-    clearEstate,    
+    clearEstate,
   };
 };

@@ -1,9 +1,7 @@
 export const getObjectKeys = <T extends Record<any, any>>(
   obj: T
 ): Array<keyof T> => (obj ? Object.keys(obj) : []);
-export const isCallable = (fn: any): fn is Function => {
-  return typeof fn === "function";
-};
+
 export const isFunction = (f: unknown): f is Function =>
   typeof f === "function";
 export const isKey = <T extends Object>(
@@ -90,8 +88,12 @@ export function clone<T = any>(
 }
 
 // for JSON#stringify
-export function replacer(key: string, value: any) {
-  if (value instanceof Map) {
+export function replacer(_key: string, value: any) {
+  if (value === undefined) {
+    return {
+      dataType: "undefined",
+    };
+  } else if (value instanceof Map) {
     return {
       dataType: "Map",
       value: Array.from(value.entries()), // or with spread: value: [...value]
@@ -107,9 +109,11 @@ export function replacer(key: string, value: any) {
 }
 
 // for JSON#parse
-export function reviver(key: string, value: any) {
+export function reviver(_key: string, value: any) {
   if (typeof value === "object" && value !== null) {
-    if (value.dataType === "Map") {
+    if (value.dataType === "undefined") {
+      return undefined;
+    } else if (value.dataType === "Map") {
       return new Map(value.value);
     } else if (value.dataType === "Set") {
       return new Set(value.value);

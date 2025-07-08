@@ -26,7 +26,6 @@ const LOG_LEVELS: Record<DebugLevel, number> = {
 
 // 環境検出
 const isBrowser = typeof window !== "undefined";
-const isNode = typeof process !== "undefined" && process.versions?.node;
 
 // Node.js環境でのANSIカラーコード
 const ANSI_COLORS: Record<DebugLevel, string> = {
